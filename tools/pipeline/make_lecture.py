@@ -83,7 +83,21 @@ def render(s, path, idx, total, title):
     fig = canvas(None if k == "title" else s["heading"], idx, total, title)
     if k == "title":
         fig.text(0.5, 0.58, s["heading"], fontsize=56 if len(s["heading"]) < 28 else 40, ha="center", color=FG)
-        fig.text(0.5, 0.45, s.get("subtitle", ""), fontsize=24, ha="center", color=ACCENT)
+        # Subtitle: wrap to at most 2 lines, never overflow the 1080p frame.
+        sub = (s.get("subtitle") or "").strip()
+        if "\n" in sub:
+            lines = [ln.strip() for ln in sub.splitlines() if ln.strip()][:2]
+        else:
+            wrapped = textwrap.wrap(sub, width=70) if sub else []
+            lines = wrapped[:2]
+            if len(wrapped) > 2 and lines:
+                lines[-1] = lines[-1][:67].rstrip(" ·-,") + "…"
+        lines = [(ln[:78] + "…") if len(ln) > 80 else ln for ln in lines]
+        y = 0.46
+        for ln in lines:
+            fig.text(0.5, y, ln, fontsize=22 if len(lines) > 1 or len(ln) > 50 else 24,
+                     ha="center", color=ACCENT)
+            y -= 0.055
     elif k in ("bullets", "equations"):
         y = 0.76
         for b in s.get("equations", []):
@@ -110,7 +124,15 @@ def render(s, path, idx, total, title):
     elif k == "diagram":
         draw_diagram(fig, s["edges"], hl=s.get("highlight", []), caption=s.get("caption"))
         if s.get("caption"):
-            fig.text(0.5, 0.09, s["caption"], ha="center", fontsize=22, color=FG, bbox=dict(boxstyle="round,pad=0.4", fc=PANEL, ec="#334155"))
+            cap = " ".join((s.get("caption") or "").split())
+            # Keep caption inside margins; leave bottom-right room for a future facecam PiP.
+            cap_lines = textwrap.wrap(cap, width=72)[:2]
+            if len(textwrap.wrap(cap, width=72)) > 2 and cap_lines:
+                cap_lines[-1] = cap_lines[-1][:69].rstrip(" ·-,") + "…"
+            cap_txt = "\n".join(cap_lines)
+            fig.text(0.5, 0.09, cap_txt, ha="center", va="center", fontsize=18 if len(cap_lines) > 1 else 20,
+                     color=FG, bbox=dict(boxstyle="round,pad=0.35", fc=PANEL, ec="#334155"),
+                     linespacing=1.25)
     elif k == "viz":
         import viz; viz.render(fig, s)
     elif k == "code":
