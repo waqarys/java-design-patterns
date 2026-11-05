@@ -1,0 +1,6 @@
+=== Iterator walkthrough ===
+next=worker-a
+next=worker-b
+next=worker-c
+next=worker-a
+next=worker-b

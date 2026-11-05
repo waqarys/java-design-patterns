@@ -1,0 +1,4 @@
+=== Flyweight walkthrough ===
+sameStyle=true pooled=2
+glyph=Glyph[character=W, style=GlyphStyle[font=Inter, size=14, color=#e2e8f0], x=10, y=20]
+thirdDistinct pooled=2

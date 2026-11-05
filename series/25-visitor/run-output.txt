@@ -1,0 +1,4 @@
+=== Visitor walkthrough ===
+circleAreaPM=12.566370614359172
+circleAreaVisitor=12.566370614359172
+rectArea=12.0

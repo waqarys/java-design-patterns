@@ -1,0 +1,3 @@
+=== Decorator walkthrough ===
+readBack=helloworld
+raw=plain

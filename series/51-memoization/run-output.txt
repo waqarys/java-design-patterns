@@ -1,0 +1,4 @@
+=== Functions walkthrough ===
+curry=5
+compose=8
+memo1=9 memo2=9 hits=1

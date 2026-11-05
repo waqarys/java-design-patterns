@@ -1,0 +1,5 @@
+=== State walkthrough ===
+start=NEW
+afterPay=PAID
+afterShip=SHIPPED
+cancelOnShipped=IllegalStateException

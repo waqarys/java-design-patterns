@@ -1,0 +1,3 @@
+=== Lens walkthrough ===
+before=Person[name=Ada, address=Address[city=London, zip=E1]]
+after=Person[name=Ada, address=Address[city=Paris, zip=E1]]

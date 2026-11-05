@@ -1,0 +1,2 @@
+=== Typeclass / Monad walkthrough ===
+mapped=Some(42)

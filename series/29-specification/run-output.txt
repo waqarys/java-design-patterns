@@ -1,0 +1,4 @@
+=== Specification walkthrough ===
+Product[name=mug, priceCents=500, inStock=true] => true
+Product[name=mug, priceCents=500, inStock=false] => false
+Product[name=tv, priceCents=50000, inStock=true] => false

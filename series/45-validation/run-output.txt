@@ -1,0 +1,3 @@
+=== Validation walkthrough ===
+welcome a@b.c
+email has no @, age under 18

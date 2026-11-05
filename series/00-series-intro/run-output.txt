@@ -1,0 +1,1 @@
+Season map loaded. Clone waqarys/java-design-patterns and follow series/README.md.

@@ -1,0 +1,6 @@
+=== Builder walkthrough ===
+method=POST
+url=https://api.buildwithwaqar.dev/v1/videos
+auth=Bearer demo
+timeout=2500
+apiCall=GET body=hi t=100

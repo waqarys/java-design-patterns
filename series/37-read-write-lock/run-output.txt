@@ -1,0 +1,4 @@
+=== Read-Write Lock walkthrough ===
+manifest-v1
+manifest-v1
+loads=1

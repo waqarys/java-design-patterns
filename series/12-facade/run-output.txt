@@ -1,0 +1,4 @@
+=== Facade walkthrough ===
+OK:TRACK-sku-42
+REJECTED:inventory
+REJECTED:payment

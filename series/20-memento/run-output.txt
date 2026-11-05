@@ -1,0 +1,4 @@
+=== Memento walkthrough ===
+now=Hello World!!!
+undo1=Hello World
+undo2=Hello

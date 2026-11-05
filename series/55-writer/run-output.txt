@@ -1,0 +1,2 @@
+=== Writer walkthrough ===
+value=4 log=inc;dbl;

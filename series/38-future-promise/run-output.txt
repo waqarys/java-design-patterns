@@ -1,0 +1,3 @@
+=== Future/Promise walkthrough ===
+async=42
+future=6

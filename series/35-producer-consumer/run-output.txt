@@ -1,0 +1,12 @@
+=== Producer-Consumer walkthrough ===
+take 1
+put 1
+put 2
+put 3
+take 2
+take 3
+put 4
+put 5
+take 4
+take 5
+sum=15

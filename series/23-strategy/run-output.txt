@@ -1,0 +1,4 @@
+=== Strategy walkthrough ===
+pct10=900
+flat200=800
+half=500

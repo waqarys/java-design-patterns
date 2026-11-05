@@ -1,0 +1,6 @@
+=== Singleton walkthrough ===
+greeting=hello from staging
+sameEnum=true
+sameHolder=true
+hits=3
+fixedNow=2026-01-01T00:00:00Z

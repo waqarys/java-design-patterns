@@ -1,0 +1,5 @@
+=== Persistent Collections walkthrough ===
+orig=Vector(1, 2, 3)
+doubled=Vector(2, 4, 6)
+max=9
+built=Vector(0, 1, 2, 3, 4)

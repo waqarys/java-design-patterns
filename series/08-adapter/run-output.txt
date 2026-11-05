@@ -1,0 +1,2 @@
+=== Adapter walkthrough ===
+lastXml=<payload>{"ok":true,"ep":"adapter"}</payload>

@@ -1,0 +1,5 @@
+=== Factory Method walkthrough ===
+email -> waqar@example.com: Welcome
+sms -> +9198: OTP 4421
+modern=push -> device-9: Build ready
+product=EmailNotification

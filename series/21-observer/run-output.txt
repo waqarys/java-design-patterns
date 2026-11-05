@@ -1,0 +1,3 @@
+=== Observer walkthrough ===
+audit=[audit:video.published, audit:video.transcoded]
+ui=[ui:video.published, ui:video.transcoded]

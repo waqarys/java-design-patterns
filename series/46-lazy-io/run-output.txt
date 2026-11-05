@@ -1,0 +1,9 @@
+=== IO walkthrough ===
+hitsBefore=0
+run=11
+hitsAfter=1
+=== Lazy walkthrough ===
+hitsBefore=0
+v1=42
+v2=42
+hitsAfter=1

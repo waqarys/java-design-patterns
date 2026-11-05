@@ -1,94 +1,96 @@
 # Series Index — Build with Waqar
 
-Suggested playlist order (beginner → advanced).
+Deep episodes for OBS + CapCut. Each folder has `explanation.md` (~1.5–2.5k words), 12–20 dark 1080p slides, `slides.pdf`, and `run-output.txt` from a real JDK 25 Demo.
+
+## Seasons
 
 
-## Season 0 · Intro
+### Season 0 · Intro
 
-- [00. Series Intro: Java 25 Design Patterns](00-series-intro/) — Beginner
-- [01. Java 25 Features for Patterns](01-java25-features/) — Beginner
-- [02. Zazr and VAVR Tour](02-zazr-and-vavr/) — Beginner
+- [00-series-intro](00-series-intro/) — **Series Intro: Java 25 Design Patterns** · ~9 min script · 1792 words · 15 slides
+- [01-java25-features](01-java25-features/) — **Java 25 Features for Patterns** · ~9 min script · 1785 words · 15 slides
+- [02-zazr-and-vavr](02-zazr-and-vavr/) — **Zazr and VAVR Tour** · ~10 min script · 1846 words · 15 slides
 
-## Season 1 · Creational
+### Season 1 · Creational (GoF)
 
-- [03. Singleton](03-singleton/) — Beginner
-- [04. Factory Method](04-factory-method/) — Beginner
-- [05. Abstract Factory](05-abstract-factory/) — Intermediate
-- [06. Builder](06-builder/) — Beginner
-- [07. Prototype](07-prototype/) — Beginner
+- [03-singleton](03-singleton/) — **Singleton** · ~10 min script · 1802 words · 16 slides
+- [04-factory-method](04-factory-method/) — **Factory Method** · ~10 min script · 1802 words · 15 slides
+- [05-abstract-factory](05-abstract-factory/) — **Abstract Factory** · ~10 min script · 1900 words · 17 slides
+- [06-builder](06-builder/) — **Builder** · ~10 min script · 1842 words · 17 slides
+- [07-prototype](07-prototype/) — **Prototype** · ~10 min script · 1911 words · 16 slides
 
-## Season 2 · Structural
+### Season 2 · Structural (GoF)
 
-- [08. Adapter](08-adapter/) — Beginner
-- [09. Bridge](09-bridge/) — Beginner
-- [10. Composite](10-composite/) — Beginner
-- [11. Decorator](11-decorator/) — Beginner
-- [12. Facade](12-facade/) — Beginner
-- [13. Flyweight](13-flyweight/) — Intermediate
-- [14. Proxy](14-proxy/) — Beginner
+- [08-adapter](08-adapter/) — **Adapter** · ~8 min script · 441 words · 14 slides
+- [09-bridge](09-bridge/) — **Bridge** · ~8 min script · 509 words · 14 slides
+- [10-composite](10-composite/) — **Composite** · ~8 min script · 442 words · 15 slides
+- [11-decorator](11-decorator/) — **Decorator** · ~8 min script · 537 words · 15 slides
+- [12-facade](12-facade/) — **Facade** · ~8 min script · 487 words · 14 slides
+- [13-flyweight](13-flyweight/) — **Flyweight** · ~8 min script · 466 words · 14 slides
+- [14-proxy](14-proxy/) — **Proxy** · ~8 min script · 472 words · 14 slides
 
-## Season 3 · Behavioral
+### Season 3 · Behavioral (GoF)
 
-- [15. Chain of Responsibility](15-chain-of-responsibility/) — Intermediate
-- [16. Command](16-command/) — Intermediate
-- [17. Interpreter](17-interpreter/) — Intermediate
-- [18. Iterator](18-iterator/) — Intermediate
-- [19. Mediator](19-mediator/) — Intermediate
-- [20. Memento](20-memento/) — Intermediate
-- [21. Observer](21-observer/) — Intermediate
-- [22. State](22-state/) — Intermediate
-- [23. Strategy](23-strategy/) — Intermediate
-- [24. Template Method](24-template-method/) — Intermediate
-- [25. Visitor](25-visitor/) — Intermediate
+- [15-chain-of-responsibility](15-chain-of-responsibility/) — **Chain of Responsibility** · ~8 min script · 492 words · 15 slides
+- [16-command](16-command/) — **Command** · ~8 min script · 479 words · 15 slides
+- [17-interpreter](17-interpreter/) — **Interpreter** · ~8 min script · 436 words · 14 slides
+- [18-iterator](18-iterator/) — **Iterator** · ~8 min script · 442 words · 15 slides
+- [19-mediator](19-mediator/) — **Mediator** · ~8 min script · 489 words · 15 slides
+- [20-memento](20-memento/) — **Memento** · ~8 min script · 454 words · 14 slides
+- [21-observer](21-observer/) — **Observer** · ~8 min script · 397 words · 14 slides
+- [22-state](22-state/) — **State** · ~8 min script · 547 words · 15 slides
+- [23-strategy](23-strategy/) — **Strategy** · ~8 min script · 455 words · 14 slides
+- [24-template-method](24-template-method/) — **Template Method** · ~8 min script · 452 words · 14 slides
+- [25-visitor](25-visitor/) — **Visitor** · ~8 min script · 510 words · 15 slides
 
-## Season 4 · Enterprise
+### Season 4 · Enterprise
 
-- [26. Repository](26-repository/) — Intermediate
-- [27. Dependency Injection](27-dependency-injection/) — Intermediate
-- [28. Null Object](28-null-object/) — Intermediate
-- [29. Specification](29-specification/) — Intermediate
-- [30. Circuit Breaker](30-circuit-breaker/) — Intermediate
-- [31. Retry](31-retry/) — Intermediate
-- [32. Event Sourcing & CQRS](32-event-sourcing-cqrs/) — Intermediate
-- [33. Saga](33-saga/) — Intermediate
-- [34. Transactional Outbox](34-outbox/) — Intermediate
+- [26-repository](26-repository/) — **Repository** · ~8 min script · 418 words · 14 slides
+- [27-dependency-injection](27-dependency-injection/) — **Dependency Injection** · ~8 min script · 484 words · 15 slides
+- [28-null-object](28-null-object/) — **Null Object** · ~8 min script · 462 words · 15 slides
+- [29-specification](29-specification/) — **Specification** · ~8 min script · 436 words · 14 slides
+- [30-circuit-breaker](30-circuit-breaker/) — **Circuit Breaker** · ~8 min script · 496 words · 15 slides
+- [31-retry](31-retry/) — **Retry** · ~8 min script · 421 words · 14 slides
+- [32-event-sourcing-cqrs](32-event-sourcing-cqrs/) — **Event Sourcing & CQRS** · ~8 min script · 507 words · 15 slides
+- [33-saga](33-saga/) — **Saga** · ~8 min script · 454 words · 15 slides
+- [34-outbox](34-outbox/) — **Transactional Outbox** · ~8 min script · 476 words · 15 slides
 
-## Season 5 · Concurrency
+### Season 5 · Concurrency
 
-- [35. Producer-Consumer](35-producer-consumer/) — Intermediate
-- [36. Thread Pool](36-thread-pool/) — Intermediate
-- [37. Read-Write Lock](37-read-write-lock/) — Intermediate
-- [38. Future & Promise](38-future-promise/) — Intermediate
-- [39. Active Object](39-active-object/) — Intermediate
-- [40. Virtual Threads](40-virtual-threads/) — Intermediate
+- [35-producer-consumer](35-producer-consumer/) — **Producer-Consumer** · ~8 min script · 436 words · 14 slides
+- [36-thread-pool](36-thread-pool/) — **Thread Pool** · ~8 min script · 498 words · 15 slides
+- [37-read-write-lock](37-read-write-lock/) — **Read-Write Lock** · ~8 min script · 428 words · 15 slides
+- [38-future-promise](38-future-promise/) — **Future & Promise** · ~8 min script · 408 words · 14 slides
+- [39-active-object](39-active-object/) — **Active Object** · ~8 min script · 451 words · 14 slides
+- [40-virtual-threads](40-virtual-threads/) — **Virtual Threads** · ~8 min script · 427 words · 14 slides
 
-## Season 6 · FP Foundations
+### Season 6 · FP Foundations
 
-- [41. Immutability & Persistent Collections](41-immutability-collections/) — Intermediate
-- [42. Option / Maybe](42-option/) — Intermediate
-- [43. Either & Railway-Oriented Programming](43-either-railway/) — Intermediate
-- [44. Try](44-try/) — Intermediate
-- [45. Validation](45-validation/) — Intermediate
-- [46. Lazy & IO](46-lazy-io/) — Intermediate
-- [47. Functor, Applicative, Monad](47-functor-applicative-monad/) — Intermediate
-- [48. Monoid & Semigroup](48-monoid-semigroup/) — Intermediate
-- [49. Foldable & Traverse](49-foldable-traverse/) — Intermediate
-- [50. Currying, Partial Application & Composition](50-currying-composition/) — Intermediate
-- [51. Memoization](51-memoization/) — Intermediate
-- [52. Smart Constructors](52-smart-constructors/) — Intermediate
-- [53. Algebraic Data Types with Sealed Records](53-adts-sealed/) — Intermediate
+- [41-immutability-collections](41-immutability-collections/) — **Immutability & Persistent Collections** · ~8 min script · 443 words · 14 slides
+- [42-option](42-option/) — **Option / Maybe** · ~8 min script · 469 words · 15 slides
+- [43-either-railway](43-either-railway/) — **Either & Railway-Oriented Programming** · ~8 min script · 483 words · 15 slides
+- [44-try](44-try/) — **Try** · ~8 min script · 387 words · 14 slides
+- [45-validation](45-validation/) — **Validation** · ~8 min script · 467 words · 14 slides
+- [46-lazy-io](46-lazy-io/) — **Lazy & IO** · ~8 min script · 485 words · 14 slides
+- [47-functor-applicative-monad](47-functor-applicative-monad/) — **Functor, Applicative, Monad** · ~8 min script · 379 words · 14 slides
+- [48-monoid-semigroup](48-monoid-semigroup/) — **Monoid & Semigroup** · ~8 min script · 405 words · 14 slides
+- [49-foldable-traverse](49-foldable-traverse/) — **Foldable & Traverse** · ~8 min script · 509 words · 15 slides
+- [50-currying-composition](50-currying-composition/) — **Currying, Partial Application & Composition** · ~8 min script · 441 words · 14 slides
+- [51-memoization](51-memoization/) — **Memoization** · ~8 min script · 353 words · 14 slides
+- [52-smart-constructors](52-smart-constructors/) — **Smart Constructors** · ~8 min script · 413 words · 14 slides
+- [53-adts-sealed](53-adts-sealed/) — **Algebraic Data Types with Sealed Records** · ~8 min script · 477 words · 14 slides
 
-## Season 7 · Advanced FP
+### Season 7 · Advanced FP
 
-- [54. Reader Monad](54-reader/) — Advanced
-- [55. Writer Monad](55-writer/) — Advanced
-- [56. State Monad](56-state/) — Advanced
-- [57. Kleisli Composition](57-kleisli/) — Advanced
-- [58. Free Monad](58-free-monad/) — Advanced
-- [59. Tagless Final](59-tagless-final/) — Advanced
-- [60. Cake Pattern](60-cake-pattern/) — Advanced
-- [61. Type Classes via Dictionaries](61-type-classes/) — Advanced
-- [62. Lenses & Optics](62-lenses-optics/) — Advanced
-- [63. Trampolining & Stack Safety](63-trampolining/) — Advanced
-- [64. Effect Systems & Interpreters](64-effect-interpreters/) — Advanced
-- [65. VAVR vs Zazr Deep Dive](65-vavr-vs-zazr/) — Advanced
+- [54-reader](54-reader/) — **Reader Monad** · ~8 min script · 457 words · 14 slides
+- [55-writer](55-writer/) — **Writer Monad** · ~8 min script · 441 words · 14 slides
+- [56-state](56-state/) — **State Monad** · ~8 min script · 496 words · 15 slides
+- [57-kleisli](57-kleisli/) — **Kleisli Composition** · ~8 min script · 421 words · 14 slides
+- [58-free-monad](58-free-monad/) — **Free Monad** · ~8 min script · 679 words · 16 slides
+- [59-tagless-final](59-tagless-final/) — **Tagless Final** · ~8 min script · 518 words · 15 slides
+- [60-cake-pattern](60-cake-pattern/) — **Cake Pattern** · ~8 min script · 515 words · 15 slides
+- [61-type-classes](61-type-classes/) — **Type Classes via Dictionaries** · ~8 min script · 367 words · 14 slides
+- [62-lenses-optics](62-lenses-optics/) — **Lenses & Optics** · ~8 min script · 486 words · 14 slides
+- [63-trampolining](63-trampolining/) — **Trampolining & Stack Safety** · ~8 min script · 466 words · 14 slides
+- [64-effect-interpreters](64-effect-interpreters/) — **Effect Systems & Interpreters** · ~8 min script · 479 words · 14 slides
+- [65-vavr-vs-zazr](65-vavr-vs-zazr/) — **VAVR vs Zazr Deep Dive** · ~8 min script · 433 words · 14 slides

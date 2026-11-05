@@ -1,0 +1,5 @@
+=== Proxy walkthrough ===
+loadedBefore=false
+showing:/assets/thumb.png
+loadedAfter=true
+showing:/assets/thumb.png

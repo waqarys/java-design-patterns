@@ -1,0 +1,4 @@
+=== Outbox walkthrough ===
+unpublished=1
+unpublishedAfter=0
+orders=[o1]

@@ -1,0 +1,2 @@
+=== Template Method walkthrough ===
+rows=2

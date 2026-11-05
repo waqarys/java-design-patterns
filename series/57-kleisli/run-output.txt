@@ -1,0 +1,3 @@
+=== Kleisli walkthrough ===
+ok=Some(42)
+bad=None

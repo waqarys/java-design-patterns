@@ -1,0 +1,5 @@
+=== Circuit Breaker walkthrough ===
+fail0 state=CLOSED
+fail1 state=OPEN
+shortCircuit=circuit open
+afterTimeout=ok state=CLOSED

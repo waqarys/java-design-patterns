@@ -1,0 +1,3 @@
+=== Saga walkthrough ===
+success=[reserved, ok:reserve, charged, ok:charge, shipped, ok:ship]
+compensated=[reserved, ok:reserve, release, aborted]

@@ -1,0 +1,6 @@
+=== ADT / Smart Constructor walkthrough ===
+email=Right(Email[value=waqar@bwq.dev])
+badEmail=Left(invalid email)
+cash 100
+card ****1234 500
+wire IN00 900

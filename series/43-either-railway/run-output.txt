@@ -1,0 +1,4 @@
+=== Either / Railway walkthrough ===
+ok:id-7
+err:not an int: x
+err:not positive: -3

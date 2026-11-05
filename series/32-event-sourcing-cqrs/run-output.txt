@@ -1,0 +1,4 @@
+=== Event Sourcing / CQRS walkthrough ===
+writeModelBalance=60
+events=[Deposited[amount=100], Withdrawn[amount=40]]
+readModelBalance=60

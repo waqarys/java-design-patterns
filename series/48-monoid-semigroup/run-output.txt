@@ -1,0 +1,3 @@
+=== Monoid walkthrough ===
+sum=10
+str=Build with Waqar

@@ -1,0 +1,5 @@
+=== Option walkthrough ===
+got 3
+missing
+sum=Some(6)
+sumNone=None

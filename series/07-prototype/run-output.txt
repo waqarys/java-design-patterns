@@ -1,0 +1,4 @@
+=== Prototype walkthrough ===
+protoTitle=Weekly Sync sections=[Agenda, Notes]
+cloneTitle=Weekly Sync — Team A sections=[Agenda, Notes, Action Items]
+deck=Kickoff eu=Kickoff — EU sharedSlides=true
