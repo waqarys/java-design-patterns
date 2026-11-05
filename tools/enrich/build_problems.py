@@ -443,7 +443,15 @@ def deep_problem_md(ep_dir: Path, pattern: str, problem: str) -> tuple[str, dict
     slug = ep_dir.name
     old = (ep_dir / "explanation.md").read_text() if (ep_dir / "explanation.md").exists() else f"# {pattern}\n"
     meta_m = re.search(r"^\*\*Season:\*\*.*$", old, re.M)
-    meta_line = meta_m.group(0) if meta_m else "**Season:** · **Category:** · **Level:**"
+    if meta_m:
+        # Strip duplicated Target runtime / Channel tails from older runs
+        raw = meta_m.group(0)
+        raw = re.split(r"\s*·\s*\*\*Target runtime:", raw)[0]
+        raw = re.split(r"\s*·\s*\*\*Runtime:", raw)[0]
+        raw = re.split(r"\s*·\s*\*\*Channel:", raw)[0]
+        meta_line = raw.rstrip(" ·") + " · **Runtime:** ~10–12 min · **Channel:** Build with Waqar"
+    else:
+        meta_line = "**Season:** · **Category:** · **Level:** · **Runtime:** ~10–12 min · **Channel:** Build with Waqar"
     title_m = re.search(r"^# (.+)$", old, re.M)
     title = title_m.group(1) if title_m else pattern
 
@@ -488,19 +496,15 @@ def deep_problem_md(ep_dir: Path, pattern: str, problem: str) -> tuple[str, dict
 
     md = f"""# {title}
 
-{meta_line} · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar
+{meta_line}
 
 ## Problem
 **{problem}**
 
-This episode is built around that concrete problem — not a shared StreamForge framing.
-You will see a real naive implementation that hurts, a full pattern-based solution, a
-runnable main with meaningful stdout, and JUnit failure-path coverage where the pattern lives.
+Concrete problem episode: naive implementation, pattern solution, runnable main, failure-path tests.
 {intro_note}{nuance}
 ## Hook
-Welcome back to **Build with Waqar**. Today we earn **{pattern}** by solving one problem well:
-*{problem}*. By the end you will have walked naive pain → pattern refactor → real JDK 25
-stdout → trade-offs, with CapCut slides and a spoken script.
+Today on **Build with Waqar** we solve «{problem}» with **{pattern}** — naive pain, refactor, JDK 25 stdout, trade-offs.
 
 ## Intent
 {pattern} exists because this force kept showing up: {problem.lower()}. Name the force, sketch
@@ -519,14 +523,8 @@ Call out the smell on camera: duplicated envelopes, missing compensations, param
 illegal transitions, or null at the boundary.
 
 ## Pattern Structure
-```mermaid
-flowchart LR
-  Client --> Pattern
-  Pattern --> Collaborators
-```
-
-Roles matter more than class counts. The diagram slide draws the collaboration for **this**
-problem so viewers can point at boxes while you type.
+See the Structure slide (generated from `diagram_for`) for the roles of **this** problem.
+Prefer regenerating explanations via `tools/enrich/clean_deepen.py` so the mermaid matches the code.
 
 ## Refactor to the Pattern
 
@@ -640,11 +638,11 @@ see you in the next one.
     )
     meta = dict(
         title=title,
-        subtitle=f"{pattern} · {problem[:60]} · Build with Waqar",
+        subtitle=(problem[:70] + ("…" if len(problem) > 70 else "")) + "\nBuild with Waqar · Java 25",
         hook_bullets=specific["hook_bullets"],
         problem_bullets=specific["problem_bullets"],
         diagram_edges=diagram_for(slug, problem),
-        diagram_caption=f"{pattern}: {problem[:50]}",
+        diagram_caption=(f"{pattern}: {problem}"[:70] + ("…" if len(f"{pattern}: {problem}") > 70 else "")),
         diagram_hl=[],
         scenario_bullets=specific["scenario_bullets"],
         naive_code=naive[:2500],

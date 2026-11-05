@@ -1,30 +1,26 @@
 # Reader Monad
 
-**Season:** 7 · Advanced FP · **Category:** Functional · **Level:** Advanced · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar
+**Season:** 7 · Advanced FP · **Category:** Functional · **Level:** Advanced · **Runtime:** ~10–12 min · **Channel:** Build with Waqar
 
 ## Problem
 **Load+merge config.yaml, secrets.env, flags.json via Env**
 
-This episode is built around that concrete problem — not a shared StreamForge framing.
-You will see a real naive implementation that hurts, a full pattern-based solution, a
-runnable main with meaningful stdout, and JUnit failure-path coverage where the pattern lives.
+Key types: `ReaderConfigLoader`.
 
-
-**Reader nuance:** Reader is not a file-I/O API. It is a computation `Reader<Env, A>` that *depends on* an environment. Loading several files together is a great fit because every step needs the same Env (baseDir, charset, FileSystem, logger). Inject Env once at the edge with `.run(env)`.
+**Reader nuance:** Reader is not a file-I/O API. It is `Reader<Env, A>` — a computation that *depends on* an environment. Loading several files together fits because every step needs the same Env (baseDir, charset, FileSystem, logger). Inject Env once at the edge with `.run(env)`.
 
 ## Hook
-Welcome back to **Build with Waqar**. Today we earn **Reader** by solving one problem well:
-*Load+merge config.yaml, secrets.env, flags.json via Env*. By the end you will have walked naive pain → pattern refactor → real JDK 25
-stdout → trade-offs, with CapCut slides and a spoken script.
+Picture this: you are mid-demo and «Load+merge config.yaml, secrets.env, flags.json via Env» blows up the naive way — you see `Failure path is asserted in ProblemTest (injected fault / invalid input)`. That is the pain. In the next ten minutes we introduce **Reader** with real types (ReaderConfigLoader), a runnable `ProblemDemo`, and the failure path locked in by tests. No abstract UML first — problem first.
 
 ## Intent
-Reader exists because this force kept showing up: load+merge config.yaml, secrets.env, flags.json via env. Name the force, sketch
-the roles, and — critically — know when you would refuse the pattern.
+Thread a shared Env (baseDir, charset, FileSystem) through a pure multi-file config merge — Reader is not a file API.
+
+**When to use:** the force behind «Load+merge config.yaml, secrets.env, flags.json via Env» shows up more than once and a simpler language feature does not erase it.
+
+**When to refuse:** you are pattern-collecting, the boundary is still unclear, or the team cannot yet test the abstraction (compensations, half-open recovery, interpreters).
 
 ## The Pain — Naive Design
-Before the pattern, teams usually thread details everywhere, leak resources on partial
-failure, or couple call sites to a third-party shape. That feels fast on day one and expensive
-on day thirty.
+Naive: every helper takes fs/charset/baseDir explicitly — parameter drilling. Easy to pass the wrong charset to one of three files.
 
 ```java
 package com.buildwithwaqar.patterns.functional.reader.problem;
@@ -78,24 +74,27 @@ public final class NaiveMultiFileLoader {
 
 ```
 
-Call out the smell on camera: duplicated envelopes, missing compensations, parameter drilling,
-illegal transitions, or null at the boundary.
+On camera, point at the smell: missing compensations, leaked XML, null at the boundary,
+illegal transitions, or hard-wired `System.out` that you cannot assert.
 
 ## Pattern Structure
 ```mermaid
 flowchart LR
-  Client --> Pattern
-  Pattern --> Collaborators
+  program[program] --> ask_Env[ask Env]
+  read_config_yaml[read config.yaml] --> Env[Env]
+  read_secrets_env[read secrets.env] --> Env[Env]
+  read_flags_json[read flags.json] --> Env[Env]
+  merge[merge] --> ConfigBundle[ConfigBundle]
 ```
 
-Roles matter more than class counts. The diagram slide draws the collaboration for **this**
-problem so viewers can point at boxes while you type.
+These roles are for **«Load+merge config.yaml, secrets.env, flags.json via Env»** — not a generic Client→Pattern poster. Keep them on screen
+while you type the solution.
 
 ## Refactor to the Pattern
 
 ### Stage 1 — Name the boundary
-Identify the client-facing API the rest of the app should depend on. Hide the incompatible
-or distributed details behind it.
+Introduce the client-facing API the rest of the app should depend on. Hide the incompatible or
+distributed details behind it. For this episode that boundary is what makes «Load+merge config.yaml, secrets.env, flags.json via Env» testable.
 
 ### Stage 2 — Encode the solution
 ```java
@@ -166,7 +165,7 @@ public final class ProblemDemo {
 
 ```
 
-## Hand-Traced Walkthrough (Verified on JDK 25)
+## Runnable Output (Verified on JDK 25)
 Narrate each line. Do not invent numbers on camera.
 
 ```text
@@ -178,82 +177,69 @@ ConfigBundle[yaml={app=demo, port=8080}, secrets={DB_PASS=s3cret}, flags={beta=t
 log=[read /app/config/config.yaml (19 bytes), read /app/config/secrets.env (15 bytes), read /app/config/feature-flags.json (10 bytes)]
 ```
 
-Trace: match each printed line to a stage above. Fork the repo, set `JAVA_HOME` to JDK 25,
-and re-run the same main class to verify.
+Happy-path cue: `ConfigBundle[yaml={app=demo, port=8080}, secrets={DB_PASS=s3cret}, flags={beta=true}]`.
+Failure-path cue: `Failure path is asserted in ProblemTest (injected fault / invalid input)`.
+Fork the repo, set `JAVA_HOME` to JDK 25, and re-run the same `ProblemDemo` to verify.
 
 ## Modern Java 25 / Zazr Variant
-Prefer records for results, sealed types for closed variants, pattern matching for exhaustive
-handling, virtual threads for blocking fan-out, and Zazr for Option/Either/Try/Validation
-when the force is about absence or accumulated errors. Keep the classic shape when interview
-literacy matters.
+For **Reader**, prefer records for results, sealed types for closed variants, and Zazr `Option`/`Either`/`Validation` when the force is absence or accumulated errors. Keep the classic shape when interview literacy matters. Reader stays pure: put `baseDir` / charset / `FileSystem` in `Env`, compose `Reader<Env,A>` steps, and call `.run(env)` once at the edge.
 
 ## Trade-offs
-- **Clarity vs ceremony:** five types for a two-line problem is a fail.
-- **Testability:** inject collaborators; for Saga, inject failure at each step.
-- **Distributed reality:** teaching demos omit metrics, poison pills, and multi-region clocks.
-- **Refuse the pattern** when a sealed switch, a function value, or a simpler library call
-  already erases the force.
-
-## When to Use / When Not to Use
-**Use when** the problem above shows up more than once and a simpler language feature does
-not erase it.
-
-**Avoid when** you are pattern-collecting, when the boundary is still unclear, or when the
-team cannot yet test the abstraction (especially compensations and half-open recovery).
-
-## Related Patterns
-Contrast Reader with its usual twin (Adapter vs Facade, Saga vs Outbox, Reader vs DI/Cake,
-State vs Strategy, Free vs Tagless). Say the distinguishing sentence out loud.
+- **Clarity vs ceremony:** Reader shines when many steps share Env; overkill for one file read.
+- **Testability:** pass a fake `FileSystem` Env in unit tests.
+- **Refuse Reader** when a simple method parameter already threads the config.
+- **Do not confuse Reader with I/O** — I/O lives in the interpreters / Env collaborators.
+- **Neighbor:** DI / Cake — Reader threads Env through pure code; Cake/DI wire concrete services at the edge.
 
 ## Interview Q&A
-**Q1. What concrete problem does Reader solve here?**
-A: Load+merge config.yaml, secrets.env, flags.json via Env.
+**Q1. Does Reader read files?**
+A: No. Reader threads Env. File reads are ordinary functions that *ask* Env for baseDir/charset/FileSystem.
 
-**Q2. What does the naive design get wrong?**
-A: Point at the naive code smells from this episode.
+**Q2. Why merge config.yaml + secrets.env + flags.json this way?**
+A: Every step needs the same Env; `.run(env)` injects it once at the edge.
 
-**Q3. How do you test failure paths?**
-A: Inject a failing collaborator (Saga step, SOAP fault, missing file) and assert the
-observable outcome — compensation order, FAILED result, or thrown IllegalStateException.
+**Q3. How do you test it?**
+A: Pass an in-memory FileSystem Env and assert the merged view without touching disk.
 
 **Q4. When is Reader the wrong tool?**
-A: Give a smaller counterexample where a function, Option, or facade is enough.
+A: When a smaller language feature erases the force, or when you really needed DI / Cake.
 
-**Q5. How does Java 25 change the encoding?**
-A: Records, sealed types, virtual threads, Zazr control types — pick what applies.
 
 ## Key Takeaways
 - Lead with the problem: Load+merge config.yaml, secrets.env, flags.json via Env.
-- Show naive pain before naming Reader.
-- Run the Demo; trust JDK 25 stdout.
-- Teach when NOT to use it.
+- Show naive pain (`Failure path is asserted in ProblemTest (injected fault / invalid input)`) before naming Reader.
+- Run the Demo; trust JDK 25 stdout (`ConfigBundle[yaml={app=demo, port=8080}, secrets={DB_PASS=s3cret}, flags={beta=true}]`).
+- Teach when NOT to use Reader.
 
 ## Video Script (≈10–12 minutes)
 Record for **Build with Waqar**. OBS for capture, CapCut for assembly. Import `slides.pdf`.
+Facecam: full-screen for the hook, framed PiP over code slides.
 
-**[0:00]** *(slide 01 title)*
-Hey everyone, welcome back to Build with Waqar. Today we solve a real problem with Reader:
-Load+merge config.yaml, secrets.env, flags.json via Env.
+**[0:00]** *(slide 01 title + talking head)*
+Hey everyone — today we solve one concrete problem with **Reader**:
+*Load+merge config.yaml, secrets.env, flags.json via Env*. Keep these names in your head: ReaderConfigLoader.
 
-**[0:40]** *(slide 02–03 problem)*
-I am not starting with a definition. Here is the product pain. Keep these names — they
-reappear in the Demo output.
+**[0:45]** *(problem + hook slides)*
+I am not starting with a textbook definition. Here is the product pain. By the end you will have
+seen the naive leak, the pattern boundary, and real JDK 25 stdout.
 
 **[2:00]** *(naive code)*
-IDE time. This is the naive version. Call out the smell.
+IDE time. This is the naive version. Call out the smell — that is what Reader exists to erase.
 
-**[3:30]** *(diagram)*
-Structure for **this** problem. Point at each role.
+**[3:30]** *(structure diagram)*
+Roles for **this** problem, not a generic UML poster. Point at each box while you talk.
 
-**[4:30]** *(refactor stages)*
-Stage by stage into the pattern. Highlight tests and failure injection.
+**[4:30]** *(refactor / solution code)*
+Stage the solution. Highlight failure injection and the tests that lock it in.
 
 **[7:00]** *(walkthrough output)*
-Real stdout from JDK 25. Line by line. No fake numbers.
+Real stdout. Happy path cue: `ConfigBundle[yaml={app=demo, port=8080}, secrets={DB_PASS=s3cret}, flags={beta=true}]`.
+Failure cue: `Failure path is asserted in ProblemTest (injected fault / invalid input)`.
+No invented numbers on camera.
 
-**[8:30]** *(modern + trade-offs)*
-Java 25 / Zazr take, then slow down for when NOT to use Reader.
+**[8:30]** *(modern Java 25 / Zazr + trade-offs)*
+Show the modernization, then slow down for when NOT to use Reader. That is what seniors listen for.
 
-**[10:30]** *(interview + recap)*
-Two interview questions, three takeaways, link the GitHub episode folder. I am Waqar —
-see you in the next one.
+**[10:30]** *(Q&A + recap + outro)*
+Two interview questions, three takeaways, link the GitHub episode folder. I am Waqar — see you in the next one.
+

@@ -1,27 +1,24 @@
 # Circuit Breaker
 
-**Season:** 4 · Enterprise · **Category:** Enterprise · **Level:** Intermediate · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar
+**Season:** 4 · Enterprise · **Category:** Enterprise · **Level:** Intermediate · **Runtime:** ~10–12 min · **Channel:** Build with Waqar
 
 ## Problem
 **Protect calls to flaky rates API**
 
-This episode is built around that concrete problem — not a shared StreamForge framing.
-You will see a real naive implementation that hurts, a full pattern-based solution, a
-runnable main with meaningful stdout, and JUnit failure-path coverage where the pattern lives.
+Key types: `CbState`, `CircuitBreaker`.
 
 ## Hook
-Welcome back to **Build with Waqar**. Today we earn **Circuit Breaker** by solving one problem well:
-*Protect calls to flaky rates API*. By the end you will have walked naive pain → pattern refactor → real JDK 25
-stdout → trade-offs, with CapCut slides and a spoken script.
+Picture this: you are mid-demo and «Protect calls to flaky rates API» blows up the naive way — you see `fail`. That is the pain. In the next ten minutes we introduce **Circuit Breaker** with real types (CbState, CircuitBreaker), a runnable `ProblemDemo`, and the failure path locked in by tests. No abstract UML first — problem first.
 
 ## Intent
-Circuit Breaker exists because this force kept showing up: protect calls to flaky rates api. Name the force, sketch
-the roles, and — critically — know when you would refuse the pattern.
+Fail fast against a flaky rates API once the error threshold trips — then probe half-open.
+
+**When to use:** the force behind «Protect calls to flaky rates API» shows up more than once and a simpler language feature does not erase it.
+
+**When to refuse:** you are pattern-collecting, the boundary is still unclear, or the team cannot yet test the abstraction (compensations, half-open recovery, interpreters).
 
 ## The Pain — Naive Design
-Before the pattern, teams usually thread details everywhere, leak resources on partial
-failure, or couple call sites to a third-party shape. That feels fast on day one and expensive
-on day thirty.
+Naive version fails to cleanly solve: Protect calls to flaky rates API
 
 ```java
 package com.buildwithwaqar.patterns.enterprise.circuitbreaker.problem;
@@ -35,24 +32,25 @@ public final class NaiveRates {
 
 ```
 
-Call out the smell on camera: duplicated envelopes, missing compensations, parameter drilling,
-illegal transitions, or null at the boundary.
+On camera, point at the smell: missing compensations, leaked XML, null at the boundary,
+illegal transitions, or hard-wired `System.out` that you cannot assert.
 
 ## Pattern Structure
 ```mermaid
 flowchart LR
-  Client --> Pattern
-  Pattern --> Collaborators
+  Client[Client] --> Breaker[Breaker]
+  Breaker[Breaker] --> RatesAPI[RatesAPI]
+  OPEN[OPEN] --> half_open[half-open]
 ```
 
-Roles matter more than class counts. The diagram slide draws the collaboration for **this**
-problem so viewers can point at boxes while you type.
+These roles are for **«Protect calls to flaky rates API»** — not a generic Client→Pattern poster. Keep them on screen
+while you type the solution.
 
 ## Refactor to the Pattern
 
 ### Stage 1 — Name the boundary
-Identify the client-facing API the rest of the app should depend on. Hide the incompatible
-or distributed details behind it.
+Introduce the client-facing API the rest of the app should depend on. Hide the incompatible or
+distributed details behind it. For this episode that boundary is what makes «Protect calls to flaky rates API» testable.
 
 ### Stage 2 — Encode the solution
 ```java
@@ -112,7 +110,7 @@ public final class ProblemDemo {
 
 ```
 
-## Hand-Traced Walkthrough (Verified on JDK 25)
+## Runnable Output (Verified on JDK 25)
 Narrate each line. Do not invent numbers on camera.
 
 ```text
@@ -129,82 +127,75 @@ shortCircuit=circuit open state=OPEN
 recovered=rate=83.2 state=CLOSED
 ```
 
-Trace: match each printed line to a stage above. Fork the repo, set `JAVA_HOME` to JDK 25,
-and re-run the same main class to verify.
+Happy-path cue: `fail`.
+Failure-path cue: `fail`.
+Fork the repo, set `JAVA_HOME` to JDK 25, and re-run the same `ProblemDemo` to verify.
 
 ## Modern Java 25 / Zazr Variant
-Prefer records for results, sealed types for closed variants, pattern matching for exhaustive
-handling, virtual threads for blocking fan-out, and Zazr for Option/Either/Try/Validation
-when the force is about absence or accumulated errors. Keep the classic shape when interview
-literacy matters.
+For **Circuit Breaker**, prefer records for results, sealed types for closed variants, and Zazr `Option`/`Either`/`Validation` when the force is absence or accumulated errors. Keep the classic shape when interview literacy matters.
 
 ## Trade-offs
-- **Clarity vs ceremony:** five types for a two-line problem is a fail.
-- **Testability:** inject collaborators; for Saga, inject failure at each step.
-- **Distributed reality:** teaching demos omit metrics, poison pills, and multi-region clocks.
-- **Refuse the pattern** when a sealed switch, a function value, or a simpler library call
-  already erases the force.
-
-## When to Use / When Not to Use
-**Use when** the problem above shows up more than once and a simpler language feature does
-not erase it.
-
-**Avoid when** you are pattern-collecting, when the boundary is still unclear, or when the
-team cannot yet test the abstraction (especially compensations and half-open recovery).
-
-## Related Patterns
-Contrast Circuit Breaker with its usual twin (Adapter vs Facade, Saga vs Outbox, Reader vs DI/Cake,
-State vs Strategy, Free vs Tagless). Say the distinguishing sentence out loud.
+- **Clarity vs ceremony:** thresholds and half-open probes need tuning — wrong numbers flap or hide outages.
+- **Testability:** inject a flaky dependency and assert OPEN → HALF_OPEN → CLOSED transitions.
+- **Refuse Breaker** for a dependency that almost never fails — a simple timeout may suffice.
+- **Pair with Retry** for blips; open the breaker when the dependency is truly down.
+- **Neighbor:** Retry — Breaker fails fast after a threshold; Retry keeps trying with backoff.
 
 ## Interview Q&A
 **Q1. What concrete problem does Circuit Breaker solve here?**
 A: Protect calls to flaky rates API.
 
 **Q2. What does the naive design get wrong?**
-A: Point at the naive code smells from this episode.
+A: Naive version fails to cleanly solve: Protect calls to flaky rates API
 
-**Q3. How do you test failure paths?**
-A: Inject a failing collaborator (Saga step, SOAP fault, missing file) and assert the
-observable outcome — compensation order, FAILED result, or thrown IllegalStateException.
+**Q3. How do you test the failure path?**
+A: Inject the fault and assert the observable outcome — e.g. `fail`.
 
 **Q4. When is Circuit Breaker the wrong tool?**
-A: Give a smaller counterexample where a function, Option, or facade is enough.
+A: When a smaller language feature erases the force, or when you really needed Retry.
 
-**Q5. How does Java 25 change the encoding?**
-A: Records, sealed types, virtual threads, Zazr control types — pick what applies.
 
 ## Key Takeaways
 - Lead with the problem: Protect calls to flaky rates API.
-- Show naive pain before naming Circuit Breaker.
-- Run the Demo; trust JDK 25 stdout.
-- Teach when NOT to use it.
+- Show naive pain (`fail`) before naming Circuit Breaker.
+- Run the Demo; trust JDK 25 stdout (`fail`).
+- Teach when NOT to use Circuit Breaker.
 
 ## Video Script (≈10–12 minutes)
 Record for **Build with Waqar**. OBS for capture, CapCut for assembly. Import `slides.pdf`.
+Facecam: full-screen for the hook, framed PiP over code slides.
 
-**[0:00]** *(slide 01 title)*
-Hey everyone, welcome back to Build with Waqar. Today we solve a real problem with Circuit Breaker:
-Protect calls to flaky rates API.
+**[0:00]** *(slide 01 title + talking head)*
+Hey everyone — today we solve one concrete problem with **Circuit Breaker**:
+*Protect calls to flaky rates API*. Keep these names in your head: CbState, CircuitBreaker.
 
-**[0:40]** *(slide 02–03 problem)*
-I am not starting with a definition. Here is the product pain. Keep these names — they
-reappear in the Demo output.
+**[0:45]** *(problem + hook slides)*
+I am not starting with a textbook definition. Here is the product pain. By the end you will have
+seen the naive leak, the pattern boundary, and real JDK 25 stdout.
 
 **[2:00]** *(naive code)*
-IDE time. This is the naive version. Call out the smell.
+IDE time. This is the naive version. Call out the smell — that is what Circuit Breaker exists to erase.
 
-**[3:30]** *(diagram)*
-Structure for **this** problem. Point at each role.
+**[3:30]** *(structure diagram)*
+Roles for **this** problem, not a generic UML poster. Point at each box while you talk.
 
-**[4:30]** *(refactor stages)*
-Stage by stage into the pattern. Highlight tests and failure injection.
+**[4:30]** *(refactor / solution code)*
+Stage the solution. Highlight failure injection and the tests that lock it in.
 
 **[7:00]** *(walkthrough output)*
-Real stdout from JDK 25. Line by line. No fake numbers.
+Real stdout. Happy path cue: `fail`.
+Failure cue: `fail`.
+No invented numbers on camera.
 
-**[8:30]** *(modern + trade-offs)*
-Java 25 / Zazr take, then slow down for when NOT to use Circuit Breaker.
+**[8:30]** *(modern Java 25 / Zazr + trade-offs)*
+Show the modernization, then slow down for when NOT to use Circuit Breaker. That is what seniors listen for.
 
-**[10:30]** *(interview + recap)*
-Two interview questions, three takeaways, link the GitHub episode folder. I am Waqar —
-see you in the next one.
+**[10:30]** *(Q&A + recap + outro)*
+Two interview questions, three takeaways, link the GitHub episode folder. I am Waqar — see you in the next one.
+
+
+## Recording Notes (This Episode)
+- Open `series/30-circuit-breaker/` and keep `run-output.txt` beside the IDE while you narrate.
+- On the Structure slide, literally point at: `Client`→`Breaker`, `Breaker`→`RatesAPI`, `OPEN`→`half-open`.
+- Break one `ProblemTest` assertion live, show the red bar, restore it — that earns trust.
+- End screen: next episode in Season 4 plus the GitHub folder link.

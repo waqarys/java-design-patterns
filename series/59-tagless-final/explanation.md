@@ -1,27 +1,26 @@
 # Tagless Final
 
-**Season:** 7 · Advanced FP · **Category:** Functional · **Level:** Advanced · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar
+**Season:** 7 · Advanced FP · **Category:** Functional · **Level:** Advanced · **Runtime:** ~10–12 min · **Channel:** Build with Waqar
 
 ## Problem
 **User registration against UserRepo/Email/Logger algebras; IO + pure test interpreters**
 
-This episode is built around that concrete problem — not a shared StreamForge framing.
-You will see a real naive implementation that hurts, a full pattern-based solution, a
-runnable main with meaningful stdout, and JUnit failure-path coverage where the pattern lives.
+Key types: `Algebras`, `User`, `Kind`, `Monad`, `UserRepo`, `EmailSender`.
+
+**Tagless nuance:** algebras describe *what* (`UserRepo[F].save`, `EmailSender[F].send`); interpreters describe *how*. Write `register` once; run it under IO in prod and under a pure `TestState` in tests.
 
 ## Hook
-Welcome back to **Build with Waqar**. Today we earn **Tagless Final** by solving one problem well:
-*User registration against UserRepo/Email/Logger algebras; IO + pure test interpreters*. By the end you will have walked naive pain → pattern refactor → real JDK 25
-stdout → trade-offs, with CapCut slides and a spoken script.
+Picture this: you are mid-demo and «User registration against UserRepo/Email/Logger algebras; IO + pure test interpreters» blows up the naive way — you see `Failure path is asserted in ProblemTest (injected fault / invalid input)`. That is the pain. In the next ten minutes we introduce **Tagless Final** with real types (Algebras, User, Kind), a runnable `ProblemDemo`, and the failure path locked in by tests. No abstract UML first — problem first.
 
 ## Intent
-Tagless Final exists because this force kept showing up: user registration against userrepo/email/logger algebras; io + pure test interpreters. Name the force, sketch
-the roles, and — critically — know when you would refuse the pattern.
+Write user registration once against algebras (`UserRepo[F]`, `EmailSender[F]`, `Logger[F]`) and run it under IO or a pure test interpreter.
+
+**When to use:** the force behind «User registration against UserRepo/Email/Logger algebras; IO + pure test interpreters» shows up more than once and a simpler language feature does not erase it.
+
+**When to refuse:** you are pattern-collecting, the boundary is still unclear, or the team cannot yet test the abstraction (compensations, half-open recovery, interpreters).
 
 ## The Pain — Naive Design
-Before the pattern, teams usually thread details everywhere, leak resources on partial
-failure, or couple call sites to a third-party shape. That feels fast on day one and expensive
-on day thirty.
+Naive: registration hard-wires Map DB + System.out email — untestable without mocks frameworks.
 
 ```java
 package com.buildwithwaqar.patterns.functional.tagless.problem;
@@ -53,24 +52,27 @@ public final class NaiveRegistration {
 
 ```
 
-Call out the smell on camera: duplicated envelopes, missing compensations, parameter drilling,
-illegal transitions, or null at the boundary.
+On camera, point at the smell: missing compensations, leaked XML, null at the boundary,
+illegal transitions, or hard-wired `System.out` that you cannot assert.
 
 ## Pattern Structure
 ```mermaid
 flowchart LR
-  Client --> Pattern
-  Pattern --> Collaborators
+  register[register] --> UserRepo_F_[UserRepo[F]]
+  register[register] --> Email_F_[Email[F]]
+  register[register] --> Logger_F_[Logger[F]]
+  IO_interp[IO interp] --> register[register]
+  Test_interp[Test interp] --> register[register]
 ```
 
-Roles matter more than class counts. The diagram slide draws the collaboration for **this**
-problem so viewers can point at boxes while you type.
+These roles are for **«User registration against UserRepo/Email/Logger algebras; IO + pure test interpreters»** — not a generic Client→Pattern poster. Keep them on screen
+while you type the solution.
 
 ## Refactor to the Pattern
 
 ### Stage 1 — Name the boundary
-Identify the client-facing API the rest of the app should depend on. Hide the incompatible
-or distributed details behind it.
+Introduce the client-facing API the rest of the app should depend on. Hide the incompatible or
+distributed details behind it. For this episode that boundary is what makes «User registration against UserRepo/Email/Logger algebras; IO + pure test interpreters» testable.
 
 ### Stage 2 — Encode the solution
 ```java
@@ -156,12 +158,7 @@ public final class Algebras {
             db.put(user.email(), user);
             return new Io<>(user);
         }
-        public Map<String, User> db() { return Map.copyOf(db); }
-    }
-    public static final class IoEmail implements EmailSender<IoWitness> {
-        private final List<String> sent = new ArrayList<>();
-        public Kind<IoWitness, Void> send(String to, String subject, String body) {
-           
+ 
 ```
 
 ### Stage 3 — Runnable main
@@ -201,7 +198,7 @@ public final class ProblemDemo {
 
 ```
 
-## Hand-Traced Walkthrough (Verified on JDK 25)
+## Runnable Output (Verified on JDK 25)
 Narrate each line. Do not invent numbers on camera.
 
 ```text
@@ -221,82 +218,69 @@ logs=[register t@est.io, registered u3]
 db=[t@est.io]
 ```
 
-Trace: match each printed line to a stage above. Fork the repo, set `JAVA_HOME` to JDK 25,
-and re-run the same main class to verify.
+Happy-path cue: `sent welcome to a@b.c`.
+Failure-path cue: `Failure path is asserted in ProblemTest (injected fault / invalid input)`.
+Fork the repo, set `JAVA_HOME` to JDK 25, and re-run the same `ProblemDemo` to verify.
 
 ## Modern Java 25 / Zazr Variant
-Prefer records for results, sealed types for closed variants, pattern matching for exhaustive
-handling, virtual threads for blocking fan-out, and Zazr for Option/Either/Try/Validation
-when the force is about absence or accumulated errors. Keep the classic shape when interview
-literacy matters.
+**Records** carry the immutable results (`StepResult`, DTOs) with almost no boilerplate. Absence / errors use **Optional or Zazr/VAVR** control types instead of null. The same `register` program runs under an IO interpreter and a pure `TestState` interpreter — that is the whole point of abstracting `F`.
 
 ## Trade-offs
-- **Clarity vs ceremony:** five types for a two-line problem is a fail.
-- **Testability:** inject collaborators; for Saga, inject failure at each step.
-- **Distributed reality:** teaching demos omit metrics, poison pills, and multi-region clocks.
-- **Refuse the pattern** when a sealed switch, a function value, or a simpler library call
-  already erases the force.
-
-## When to Use / When Not to Use
-**Use when** the problem above shows up more than once and a simpler language feature does
-not erase it.
-
-**Avoid when** you are pattern-collecting, when the boundary is still unclear, or when the
-team cannot yet test the abstraction (especially compensations and half-open recovery).
-
-## Related Patterns
-Contrast Tagless Final with its usual twin (Adapter vs Facade, Saga vs Outbox, Reader vs DI/Cake,
-State vs Strategy, Free vs Tagless). Say the distinguishing sentence out loud.
+- **Clarity vs ceremony:** three algebras + two interpreters is worth it only if you need swap-able effects.
+- **Testability:** pure `TestState` asserts emails/logs without mocking frameworks.
+- **Refuse Tagless** for a one-off script — a plain service class is enough.
+- **HKT emulation** (Kind witnesses) adds noise; keep algebras small.
+- **Neighbor:** Free — Tagless Final is usually lighter in Java; Free shines when you need program inspection.
 
 ## Interview Q&A
-**Q1. What concrete problem does Tagless Final solve here?**
-A: User registration against UserRepo/Email/Logger algebras; IO + pure test interpreters.
+**Q1. What is abstract here — the program or the effect?**
+A: The effect `F`. `register` is written once; IO and TestState interpreters provide `UserRepo`/`Email`/`Logger`.
 
-**Q2. What does the naive design get wrong?**
-A: Point at the naive code smells from this episode.
+**Q2. Why not just mock with Mockito?**
+A: A pure interpreter records emails/logs in data — no mocking framework, deterministic assertions.
 
-**Q3. How do you test failure paths?**
-A: Inject a failing collaborator (Saga step, SOAP fault, missing file) and assert the
-observable outcome — compensation order, FAILED result, or thrown IllegalStateException.
+**Q3. When is Tagless overkill?**
+A: A single concrete service with constructor injection already gives you test seams.
 
 **Q4. When is Tagless Final the wrong tool?**
-A: Give a smaller counterexample where a function, Option, or facade is enough.
+A: When a smaller language feature erases the force, or when you really needed Free.
 
-**Q5. How does Java 25 change the encoding?**
-A: Records, sealed types, virtual threads, Zazr control types — pick what applies.
 
 ## Key Takeaways
 - Lead with the problem: User registration against UserRepo/Email/Logger algebras; IO + pure test interpreters.
-- Show naive pain before naming Tagless Final.
-- Run the Demo; trust JDK 25 stdout.
-- Teach when NOT to use it.
+- Show naive pain (`Failure path is asserted in ProblemTest (injected fault / invalid input)`) before naming Tagless Final.
+- Run the Demo; trust JDK 25 stdout (`sent welcome to a@b.c`).
+- Teach when NOT to use Tagless Final.
 
 ## Video Script (≈10–12 minutes)
 Record for **Build with Waqar**. OBS for capture, CapCut for assembly. Import `slides.pdf`.
+Facecam: full-screen for the hook, framed PiP over code slides.
 
-**[0:00]** *(slide 01 title)*
-Hey everyone, welcome back to Build with Waqar. Today we solve a real problem with Tagless Final:
-User registration against UserRepo/Email/Logger algebras; IO + pure test interpreters.
+**[0:00]** *(slide 01 title + talking head)*
+Hey everyone — today we solve one concrete problem with **Tagless Final**:
+*User registration against UserRepo/Email/Logger algebras; IO + pure test interpreters*. Keep these names in your head: Algebras, User, Kind, Monad.
 
-**[0:40]** *(slide 02–03 problem)*
-I am not starting with a definition. Here is the product pain. Keep these names — they
-reappear in the Demo output.
+**[0:45]** *(problem + hook slides)*
+I am not starting with a textbook definition. Here is the product pain. By the end you will have
+seen the naive leak, the pattern boundary, and real JDK 25 stdout.
 
 **[2:00]** *(naive code)*
-IDE time. This is the naive version. Call out the smell.
+IDE time. This is the naive version. Call out the smell — that is what Tagless Final exists to erase.
 
-**[3:30]** *(diagram)*
-Structure for **this** problem. Point at each role.
+**[3:30]** *(structure diagram)*
+Roles for **this** problem, not a generic UML poster. Point at each box while you talk.
 
-**[4:30]** *(refactor stages)*
-Stage by stage into the pattern. Highlight tests and failure injection.
+**[4:30]** *(refactor / solution code)*
+Stage the solution. Highlight failure injection and the tests that lock it in.
 
 **[7:00]** *(walkthrough output)*
-Real stdout from JDK 25. Line by line. No fake numbers.
+Real stdout. Happy path cue: `sent welcome to a@b.c`.
+Failure cue: `Failure path is asserted in ProblemTest (injected fault / invalid input)`.
+No invented numbers on camera.
 
-**[8:30]** *(modern + trade-offs)*
-Java 25 / Zazr take, then slow down for when NOT to use Tagless Final.
+**[8:30]** *(modern Java 25 / Zazr + trade-offs)*
+Show the modernization, then slow down for when NOT to use Tagless Final. That is what seniors listen for.
 
-**[10:30]** *(interview + recap)*
-Two interview questions, three takeaways, link the GitHub episode folder. I am Waqar —
-see you in the next one.
+**[10:30]** *(Q&A + recap + outro)*
+Two interview questions, three takeaways, link the GitHub episode folder. I am Waqar — see you in the next one.
+

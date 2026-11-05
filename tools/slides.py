@@ -56,20 +56,46 @@ def chunks(code: str, n=28):
 
 def parse_sections(md: str):
     title = re.search(r"^# (.+)$", md, re.M).group(1)
-    meta_m = re.search(r"^\*\*(Season|Category|Level):\*\*.*$", md, re.M)
+    meta_m = re.search(r"^\*\*Season:\*\*.*$", md, re.M)
     meta = meta_m.group(0).replace("**", "") if meta_m else ""
+    # Prefer the Problem one-liner as the title subtitle (short, filmable).
+    prob = ""
+    pm = re.search(r"^## Problem\n\*\*(.+?)\*\*", md, re.M | re.S)
+    if pm:
+        prob = " ".join(pm.group(1).split())
+    # Compact season · category · level (drop Runtime/Channel)
+    short_meta = ""
+    if meta_m:
+        parts = []
+        for key in ("Season", "Category", "Level"):
+            mm = re.search(rf"\*\*{key}:\*\*\s*([^*·]+)", meta_m.group(0))
+            if mm:
+                parts.append(mm.group(1).strip())
+        short_meta = " · ".join(parts)
     secs = {}
     for m in re.finditer(r"^## (.+?)\n(.*?)(?=^## |\Z)", md, re.M | re.S):
         secs[m.group(1).strip()] = m.group(2).strip()
-    return title, meta, secs
+    return title, meta, secs, prob, short_meta
+
+def _short(s: str, n=70) -> str:
+    s = " ".join((s or "").split())
+    return s if len(s) <= n else s[: n - 1].rstrip(" ·-,") + "…"
 
 def render_episode(ep_dir: Path):
     md_path = ep_dir / "explanation.md"
     if not md_path.exists():
         return
     md = md_path.read_text()
-    title, meta, secs = parse_sections(md)
-    S = [dict(kind="title", heading=title, subtitle=meta or "Build with Waqar · Java 25 Design Patterns")]
+    title, meta, secs, prob, short_meta = parse_sections(md)
+    if prob and short_meta:
+        subtitle = _short(prob, 70) + "\n" + short_meta
+    elif short_meta:
+        subtitle = short_meta
+    elif prob:
+        subtitle = _short(prob, 70)
+    else:
+        subtitle = "Build with Waqar · Java 25 Design Patterns"
+    S = [dict(kind="title", heading=title, subtitle=subtitle)]
     for name in [
         "Intent", "Problem", "Real-world Analogy", "When to Use", "When Not to Use",
         "Naive Approach", "Pattern Structure", "Classic Implementation",
