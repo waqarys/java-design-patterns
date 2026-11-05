@@ -1,3 +1,6 @@
-=== Currying/Memoization problem ===
-curry=42
-memo=144,144 hits=1
+=== Memoization: coin-change DP + tax lookup ===
+naive ways=18 calls=961 ms=0
+memo  ways=18 calls=241 ms=1
+--- tax-rate lookup memoize ---
+CA1=725 CA2=725 NY=800
+computeCalls=2 elapsedMs=12

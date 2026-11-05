@@ -1,2 +1,7 @@
-=== Foldable problem: score totals ===
-60
+=== Foldable/Traverse: scores + validated IDs ===
+--- naive ---
+6
+--- foldable ---
+6
+Optional[[1, 2]]
+Optional.empty

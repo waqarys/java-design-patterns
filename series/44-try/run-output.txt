@@ -1,3 +1,6 @@
-=== Try problem: config int with recovery ===
-good=9090
-bad=8080
+=== Try: parse config int with recovery ===
+--- naive ---
+caught
+--- try ---
+8080
+8080

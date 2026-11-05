@@ -1,9 +1,9 @@
 # Smart Constructors
 
-**Season:** 6 · FP Foundations · **Category:** Functional · **Level:** Intermediate · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar
+**Season:** 6 · FP Foundations · **Category:** Functional · **Level:** Intermediate · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar
 
 ## Problem
-**Email that cannot hold invalid strings**
+**Money, Email, IBAN value objects with validated creation**
 
 This episode is built around that concrete problem — not a shared StreamForge framing.
 You will see a real naive implementation that hurts, a full pattern-based solution, a
@@ -11,11 +11,11 @@ runnable main with meaningful stdout, and JUnit failure-path coverage where the 
 
 ## Hook
 Welcome back to **Build with Waqar**. Today we earn **Smart Constructors** by solving one problem well:
-*Email that cannot hold invalid strings*. By the end you will have walked naive pain → pattern refactor → real JDK 25
+*Money, Email, IBAN value objects with validated creation*. By the end you will have walked naive pain → pattern refactor → real JDK 25
 stdout → trade-offs, with CapCut slides and a spoken script.
 
 ## Intent
-Smart Constructors exists because this force kept showing up: email that cannot hold invalid strings. Name the force, sketch
+Smart Constructors exists because this force kept showing up: money, email, iban value objects with validated creation. Name the force, sketch
 the roles, and — critically — know when you would refuse the pattern.
 
 ## The Pain — Naive Design
@@ -24,16 +24,16 @@ failure, or couple call sites to a third-party shape. That feels fast on day one
 on day thirty.
 
 ```java
-package com.buildwithwaqar.patterns.functional.option;
+package com.buildwithwaqar.patterns.functional.smartctor.problem;
 
-import com.buildwithwaqar.patterns.functional.option.ZazrOptionDemo;
-/** Problem: parse a positive port from config without null or exceptions at call sites. */
-public final class UseCaseDemo {
-  public static void main(String[] a) {
-    System.out.println("=== Option problem: positive port ===");
-    System.out.println(ZazrOptionDemo.describe(ZazrOptionDemo.parsePositive("8080")));
-    System.out.println(ZazrOptionDemo.describe(ZazrOptionDemo.parsePositive("-1")));
-  }
+/** Naive: public constructors / raw strings — invalid money/email/IBAN compile fine. */
+public final class NaiveValues {
+    public record RawMoney(String currency, int cents) {}
+    public record RawEmail(String value) {}
+    public record RawIban(String value) {}
+    public static RawMoney money(String c, int cents) { return new RawMoney(c, cents); } // accepts -1
+    public static RawEmail email(String v) { return new RawEmail(v); } // accepts "not-an-email"
+    public static RawIban iban(String v) { return new RawIban(v); }
 }
 
 ```
@@ -59,32 +59,83 @@ or distributed details behind it.
 
 ### Stage 2 — Encode the solution
 ```java
-package com.buildwithwaqar.patterns.functional.option;
+package com.buildwithwaqar.patterns.functional.smartctor.problem;
 
-import com.buildwithwaqar.patterns.functional.option.ZazrOptionDemo;
-/** Problem: parse a positive port from config without null or exceptions at call sites. */
-public final class UseCaseDemo {
-  public static void main(String[] a) {
-    System.out.println("=== Option problem: positive port ===");
-    System.out.println(ZazrOptionDemo.describe(ZazrOptionDemo.parsePositive("8080")));
-    System.out.println(ZazrOptionDemo.describe(ZazrOptionDemo.parsePositive("-1")));
-  }
+import java.util.Optional;
+
+/** Smart constructors: Money, Email, IBAN — invalid values cannot be constructed. */
+public final class ValueObjects {
+    private ValueObjects() {}
+
+    public static final class Money {
+        private final String currency;
+        private final int cents;
+        private Money(String currency, int cents) {
+            this.currency = currency;
+            this.cents = cents;
+        }
+        public String currency() { return currency; }
+        public int cents() { return cents; }
+        public static Optional<Money> of(String currency, int cents) {
+            if (currency == null || currency.length() != 3) return Optional.empty();
+            if (cents < 0) return Optional.empty();
+            return Optional.of(new Money(currency.toUpperCase(), cents));
+        }
+        public String toString() { return currency + ":" + cents; }
+    }
+
+    public static final class Email {
+        private final String value;
+        private Email(String value) { this.value = value; }
+        public String value() { return value; }
+        public static Optional<Email> of(String raw) {
+            if (raw == null) return Optional.empty();
+            String s = raw.trim();
+            int at = s.indexOf('@');
+            if (at <= 0 || at != s.lastIndexOf('@') || at == s.length() - 1) return Optional.empty();
+            if (s.contains(" ")) return Optional.empty();
+            return Optional.of(new Email(s.toLowerCase()));
+        }
+        public String toString() { return value; }
+    }
+
+    public static final class Iban {
+        private final String value;
+        private Iban(String value) { this.value = value; }
+        public String value() { return value; }
+        public static Optional<Iban> of(String raw) {
+            if (raw == null) return Optional.empty();
+            String s = raw.replace(" ", "").toUpperCase();
+            if (s.length() < 15 || s.length() > 34) return Optional.empty();
+            if (!s.matches("[A-Z]{2}[0-9]{2}[A-Z0-9]+")) return Optional.empty();
+            return Optional.of(new Iban(s));
+        }
+        public String toString() { return value; }
+    }
 }
 
 ```
 
 ### Stage 3 — Runnable main
 ```java
-package com.buildwithwaqar.patterns.functional.option;
+package com.buildwithwaqar.patterns.functional.smartctor.problem;
 
-import com.buildwithwaqar.patterns.functional.option.ZazrOptionDemo;
-/** Problem: parse a positive port from config without null or exceptions at call sites. */
-public final class UseCaseDemo {
-  public static void main(String[] a) {
-    System.out.println("=== Option problem: positive port ===");
-    System.out.println(ZazrOptionDemo.describe(ZazrOptionDemo.parsePositive("8080")));
-    System.out.println(ZazrOptionDemo.describe(ZazrOptionDemo.parsePositive("-1")));
-  }
+public final class ProblemDemo {
+    public static void main(String[] args) {
+        System.out.println("=== Smart Constructors: Money / Email / IBAN ===");
+        System.out.println("--- naive allows illegal states ---");
+        System.out.println(NaiveValues.money("US", -5));
+        System.out.println(NaiveValues.email("not-an-email"));
+        System.out.println(NaiveValues.iban("xx"));
+
+        System.out.println("--- smart constructors ---");
+        System.out.println("money=" + ValueObjects.Money.of("USD", 1999));
+        System.out.println("badMoney=" + ValueObjects.Money.of("US", -1));
+        System.out.println("email=" + ValueObjects.Email.of("A@B.C"));
+        System.out.println("badEmail=" + ValueObjects.Email.of("nope"));
+        System.out.println("iban=" + ValueObjects.Iban.of("DE89 3704 0044 0532 0130 00"));
+        System.out.println("badIban=" + ValueObjects.Iban.of("12"));
+    }
 }
 
 ```
@@ -93,9 +144,18 @@ public final class UseCaseDemo {
 Narrate each line. Do not invent numbers on camera.
 
 ```text
-=== Option problem: positive port ===
-got 8080
-missing
+=== Smart Constructors: Money / Email / IBAN ===
+--- naive allows illegal states ---
+RawMoney[currency=US, cents=-5]
+RawEmail[value=not-an-email]
+RawIban[value=xx]
+--- smart constructors ---
+money=Optional[USD:1999]
+badMoney=Optional.empty
+email=Optional[a@b.c]
+badEmail=Optional.empty
+iban=Optional[DE89370400440532013000]
+badIban=Optional.empty
 ```
 
 Trace: match each printed line to a stage above. Fork the repo, set `JAVA_HOME` to JDK 25,
@@ -127,7 +187,7 @@ State vs Strategy, Free vs Tagless). Say the distinguishing sentence out loud.
 
 ## Interview Q&A
 **Q1. What concrete problem does Smart Constructors solve here?**
-A: Email that cannot hold invalid strings.
+A: Money, Email, IBAN value objects with validated creation.
 
 **Q2. What does the naive design get wrong?**
 A: Point at the naive code smells from this episode.
@@ -143,7 +203,7 @@ A: Give a smaller counterexample where a function, Option, or facade is enough.
 A: Records, sealed types, virtual threads, Zazr control types — pick what applies.
 
 ## Key Takeaways
-- Lead with the problem: Email that cannot hold invalid strings.
+- Lead with the problem: Money, Email, IBAN value objects with validated creation.
 - Show naive pain before naming Smart Constructors.
 - Run the Demo; trust JDK 25 stdout.
 - Teach when NOT to use it.
@@ -153,7 +213,7 @@ Record for **Build with Waqar**. OBS for capture, CapCut for assembly. Import `s
 
 **[0:00]** *(slide 01 title)*
 Hey everyone, welcome back to Build with Waqar. Today we solve a real problem with Smart Constructors:
-Email that cannot hold invalid strings.
+Money, Email, IBAN value objects with validated creation.
 
 **[0:40]** *(slide 02–03 problem)*
 I am not starting with a definition. Here is the product pain. Keep these names — they
@@ -177,79 +237,3 @@ Java 25 / Zazr take, then slow down for when NOT to use Smart Constructors.
 **[10:30]** *(interview + recap)*
 Two interview questions, three takeaways, link the GitHub episode folder. I am Waqar —
 see you in the next one.
-
-
-## Studio Notes for Build with Waqar
-When you record this episode, keep the energy practical. Start with the product pain, not the pattern name. Viewers stay when they feel the bug before they learn the label. In CapCut, overlay the slide number in the corner and cut idle IDE scrolling. If a code block is long, zoom CapCut to the highlighted lines rather than shrinking the font on the slide. Re-run the Demo live once if your machine allows — viewers trust a terminal more than a screenshot. Finally, end with a single actionable challenge: ask them to open the repo, run the Demo, and mutate one assertion in the test to see the failure. That turns passive watching into practice.
-
-### CapCut Checklist
-- Import `slides.pdf` or the PNG sequence at 1920×1080.
-- Align voiceover to the timestamps in the Video Script section.
-- Keep lower-thirds short: pattern name + one-line intent.
-- Add a pinned comment with the GitHub path to this episode folder.
-
-### Common Recording Mistakes
-- Reading UML without showing running output.
-- Skipping the "when NOT to use" section — that is what seniors listen for.
-- Rushing trade-offs. Slow down here; it is interview gold.
-- Forgetting to mention the test class name so learners can `mvn -Dtest=... test`.
-
-
-## Practice Drill (Do This After Watching)
-1. Clone `waqarys/java-design-patterns` and set `JAVA_HOME` to JDK 25.
-2. Run the episode Demo (`mvn -q exec:java -Dexec.mainClass=...` or `java -cp ... Demo`).
-3. Break the implementation on purpose; watch the test fail; restore it.
-4. Write one alternative design in a scratch branch and compare readability.
-5. Explain the pattern out loud in sixty seconds without looking at notes — that is your introspective for interviews.
-
-## Glossary
-- **Force:** the design pressure (extensibility, coupling, allocation, testability) that makes a pattern worth considering.
-- **Role:** a participant name from the pattern (Context, Strategy, Client, Creator, Product).
-- **Smell:** a code signal that a force is unresolved (telescoping constructors, instanceof forests, god classes).
-- **Modernization:** the Java 25 / Zazr encoding that preserves the force-resolution with less ceremony.
-
-
-## Problem Deep Dive
-The concrete problem for this episode is: **Email that cannot hold invalid strings**.
-
-Walk the naive path slowly on camera. Ask viewers what breaks first when requirements change —
-a new file to load, a new payment currency, a new saga step, a new illegal state transition.
-That question is the force. The pattern is just the name we give the force once we have felt it.
-
-Then open the solution types and show the boundary: what the rest of the app is allowed to
-depend on, and what stays hidden. Highlight how the runnable main prints a meaningful trace —
-happy path and at least one failure path — so CapCut can cut between IDE and terminal without
-inventing numbers.
-
-Finally, spend a full minute on trade-offs. Seniors stay for the "when not". Juniors need the
-happy path. Your job on Build with Waqar is both.
-
-
-## Studio Notes for Build with Waqar
-When you record this episode, keep the energy practical. Start with the product pain, not the pattern name. Viewers stay when they feel the bug before they learn the label. In CapCut, overlay the slide number in the corner and cut idle IDE scrolling. If a code block is long, zoom CapCut to the highlighted lines rather than shrinking the font on the slide. Re-run the Demo live once if your machine allows — viewers trust a terminal more than a screenshot. Finally, end with a single actionable challenge: ask them to open the repo, run the Demo, and mutate one assertion in the test to see the failure. That turns passive watching into practice.
-
-### CapCut Checklist
-- Import `slides.pdf` or the PNG sequence at 1920×1080.
-- Align voiceover to the timestamps in the Video Script section.
-- Keep lower-thirds short: pattern name + one-line intent.
-- Add a pinned comment with the GitHub path to this episode folder.
-
-### Common Recording Mistakes
-- Reading UML without showing running output.
-- Skipping the "when NOT to use" section — that is what seniors listen for.
-- Rushing trade-offs. Slow down here; it is interview gold.
-- Forgetting to mention the test class name so learners can `mvn -Dtest=... test`.
-
-
-## Practice Drill (Do This After Watching)
-1. Clone `waqarys/java-design-patterns` and set `JAVA_HOME` to JDK 25.
-2. Run the episode Demo (`mvn -q exec:java -Dexec.mainClass=...` or `java -cp ... Demo`).
-3. Break the implementation on purpose; watch the test fail; restore it.
-4. Write one alternative design in a scratch branch and compare readability.
-5. Explain the pattern out loud in sixty seconds without looking at notes — that is your introspective for interviews.
-
-## Glossary
-- **Force:** the design pressure (extensibility, coupling, allocation, testability) that makes a pattern worth considering.
-- **Role:** a participant name from the pattern (Context, Strategy, Client, Creator, Product).
-- **Smell:** a code signal that a force is unresolved (telescoping constructors, instanceof forests, god classes).
-- **Modernization:** the Java 25 / Zazr encoding that preserves the force-resolution with less ceremony.

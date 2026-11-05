@@ -1,6 +1,6 @@
 # Validation
 
-**Season:** 6 · FP Foundations · **Category:** Functional · **Level:** Intermediate · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar
+**Season:** 6 · FP Foundations · **Category:** Functional · **Level:** Intermediate · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar
 
 ## Problem
 **Signup form accumulates all field errors**
@@ -24,15 +24,15 @@ failure, or couple call sites to a third-party shape. That feels fast on day one
 on day thirty.
 
 ```java
-package com.buildwithwaqar.patterns.functional.validation;
+package com.buildwithwaqar.patterns.functional.validation.problem;
 
-import com.buildwithwaqar.patterns.functional.validation.SignupValidation;
-/** Problem: signup form must show EVERY field error at once. */
-public final class UseCaseDemo {
-  public static void main(String[] a) {
-    System.out.println("=== Validation problem: signup accumulates errors ===");
-    System.out.println(SignupValidation.message(SignupValidation.signup("a@b.c", 30)));
-    System.out.println(SignupValidation.message(SignupValidation.signup("bad", 10)));
+import java.util.*;
+
+public final class NaiveSignup {
+  public static String signup(String email, int age){
+    if(!email.contains("@")) throw new IllegalArgumentException("email");
+    if(age<18) throw new IllegalArgumentException("age");
+    return "ok:"+email;
   }
 }
 
@@ -59,48 +59,47 @@ or distributed details behind it.
 
 ### Stage 2 — Encode the solution
 ```java
-package com.buildwithwaqar.patterns.functional.validation;
+package com.buildwithwaqar.patterns.functional.validation.problem;
 
-import dev.zazr.control.Validation;
+import java.util.*;
+import java.util.function.*;
 
-record Signup(String email, int age) {}
-
-public final class SignupValidation {
-    private SignupValidation() {}
-
-    public static Validation<String, String> email(String raw) {
-        return Validation.fromPredicate(raw, e -> e != null && e.contains("@"), e -> "email has no @");
-    }
-
-    public static Validation<String, Integer> age(int raw) {
-        return Validation.fromPredicate(raw, a -> a >= 18, a -> "age under 18");
-    }
-
-    public static Validation<String, Signup> signup(String email, int age) {
-        return Validation.zipWith(email(email), age(age), Signup::new);
-    }
-
-    public static String message(Validation<String, Signup> v) {
-        return switch (v) {
-            case Validation.Valid(var s) -> "welcome " + s.email();
-            case Validation.Invalid(var errors) -> errors.mkString(", ");
-        };
-    }
+sealed interface Validation<E,A> permits Valid, Invalid {
+  boolean isValid(); A get(); List<E> errors();
+  default <B> Validation<E,B> map(Function<A,B> f){ return isValid()? new Valid<>(f.apply(get())): new Invalid<>(errors()); }
+  default <B> Validation<E,B> zipWith(Validation<E,B> other, BiFunction<A,B,?> ignored){ throw new UnsupportedOperationException(); }
+}
+record Valid<E,A>(A value) implements Validation<E,A> {
+  public boolean isValid(){return true;} public A get(){return value;} public List<E> errors(){return List.of();}
+}
+record Invalid<E,A>(List<E> errs) implements Validation<E,A> {
+  public boolean isValid(){return false;} public A get(){throw new IllegalStateException();} public List<E> errors(){return errs;}
+}
+final class Signup {
+  static Validation<String,String> email(String e){ return e!=null && e.contains("@")? new Valid<>(e): new Invalid<>(List.of("email has no @")); }
+  static Validation<String,Integer> age(int a){ return a>=18? new Valid<>(a): new Invalid<>(List.of("age under 18")); }
+  static Validation<String,String> form(String e, int a){
+    var ve=email(e); var va=age(a);
+    if (ve.isValid() && va.isValid()) return new Valid<>("welcome "+ve.get());
+    List<String> errs=new ArrayList<>(); errs.addAll(ve.errors()); errs.addAll(va.errors());
+    return new Invalid<>(errs);
+  }
 }
 
 ```
 
 ### Stage 3 — Runnable main
 ```java
-package com.buildwithwaqar.patterns.functional.validation;
-
-import com.buildwithwaqar.patterns.functional.validation.SignupValidation;
-/** Problem: signup form must show EVERY field error at once. */
-public final class UseCaseDemo {
-  public static void main(String[] a) {
-    System.out.println("=== Validation problem: signup accumulates errors ===");
-    System.out.println(SignupValidation.message(SignupValidation.signup("a@b.c", 30)));
-    System.out.println(SignupValidation.message(SignupValidation.signup("bad", 10)));
+package com.buildwithwaqar.patterns.functional.validation.problem;
+import java.util.*; import java.util.function.*;
+public final class ProblemDemo {
+  public static void main(String[] args) {
+    System.out.println("=== Validation: signup accumulates errors ===");
+    System.out.println("--- naive ---");
+try { System.out.println(NaiveSignup.signup("bad", 10)); } catch(Exception e){ System.out.println("caught="+e.getMessage()); }
+System.out.println("--- validation ---");
+System.out.println(Signup.form("a@b.c", 20));
+System.out.println(Signup.form("bad", 10));
   }
 }
 
@@ -110,9 +109,12 @@ public final class UseCaseDemo {
 Narrate each line. Do not invent numbers on camera.
 
 ```text
-=== Validation problem: signup accumulates errors ===
-welcome a@b.c
-email has no @, age under 18
+=== Validation: signup accumulates errors ===
+--- naive ---
+caught=email
+--- validation ---
+Valid[value=welcome a@b.c]
+Invalid[errs=[email has no @, age under 18]]
 ```
 
 Trace: match each printed line to a stage above. Fork the repo, set `JAVA_HOME` to JDK 25,
@@ -194,65 +196,3 @@ Java 25 / Zazr take, then slow down for when NOT to use Validation.
 **[10:30]** *(interview + recap)*
 Two interview questions, three takeaways, link the GitHub episode folder. I am Waqar —
 see you in the next one.
-
-
-## Studio Notes for Build with Waqar
-When you record this episode, keep the energy practical. Start with the product pain, not the pattern name. Viewers stay when they feel the bug before they learn the label. In CapCut, overlay the slide number in the corner and cut idle IDE scrolling. If a code block is long, zoom CapCut to the highlighted lines rather than shrinking the font on the slide. Re-run the Demo live once if your machine allows — viewers trust a terminal more than a screenshot. Finally, end with a single actionable challenge: ask them to open the repo, run the Demo, and mutate one assertion in the test to see the failure. That turns passive watching into practice.
-
-### CapCut Checklist
-- Import `slides.pdf` or the PNG sequence at 1920×1080.
-- Align voiceover to the timestamps in the Video Script section.
-- Keep lower-thirds short: pattern name + one-line intent.
-- Add a pinned comment with the GitHub path to this episode folder.
-
-### Common Recording Mistakes
-- Reading UML without showing running output.
-- Skipping the "when NOT to use" section — that is what seniors listen for.
-- Rushing trade-offs. Slow down here; it is interview gold.
-- Forgetting to mention the test class name so learners can `mvn -Dtest=... test`.
-
-
-## Practice Drill (Do This After Watching)
-1. Clone `waqarys/java-design-patterns` and set `JAVA_HOME` to JDK 25.
-2. Run the episode Demo (`mvn -q exec:java -Dexec.mainClass=...` or `java -cp ... Demo`).
-3. Break the implementation on purpose; watch the test fail; restore it.
-4. Write one alternative design in a scratch branch and compare readability.
-5. Explain the pattern out loud in sixty seconds without looking at notes — that is your introspective for interviews.
-
-## Glossary
-- **Force:** the design pressure (extensibility, coupling, allocation, testability) that makes a pattern worth considering.
-- **Role:** a participant name from the pattern (Context, Strategy, Client, Creator, Product).
-- **Smell:** a code signal that a force is unresolved (telescoping constructors, instanceof forests, god classes).
-- **Modernization:** the Java 25 / Zazr encoding that preserves the force-resolution with less ceremony.
-
-
-## Problem Deep Dive
-The concrete problem for this episode is: **Signup form accumulates all field errors**.
-
-Walk the naive path slowly on camera. Ask viewers what breaks first when requirements change —
-a new file to load, a new payment currency, a new saga step, a new illegal state transition.
-That question is the force. The pattern is just the name we give the force once we have felt it.
-
-Then open the solution types and show the boundary: what the rest of the app is allowed to
-depend on, and what stays hidden. Highlight how the runnable main prints a meaningful trace —
-happy path and at least one failure path — so CapCut can cut between IDE and terminal without
-inventing numbers.
-
-Finally, spend a full minute on trade-offs. Seniors stay for the "when not". Juniors need the
-happy path. Your job on Build with Waqar is both.
-
-
-## Studio Notes for Build with Waqar
-When you record this episode, keep the energy practical. Start with the product pain, not the pattern name. Viewers stay when they feel the bug before they learn the label. In CapCut, overlay the slide number in the corner and cut idle IDE scrolling. If a code block is long, zoom CapCut to the highlighted lines rather than shrinking the font on the slide. Re-run the Demo live once if your machine allows — viewers trust a terminal more than a screenshot. Finally, end with a single actionable challenge: ask them to open the repo, run the Demo, and mutate one assertion in the test to see the failure. That turns passive watching into practice.
-
-### CapCut Checklist
-- Import `slides.pdf` or the PNG sequence at 1920×1080.
-- Align voiceover to the timestamps in the Video Script section.
-- Keep lower-thirds short: pattern name + one-line intent.
-- Add a pinned comment with the GitHub path to this episode folder.
-
-### Common Recording Mistakes
-- Reading UML without showing running output.
-- Skipping the "when NOT to use" section — that is what seniors listen for.
-- Rushing trade-offs. Slow down here; it is interview gold.
-- Forgetting to mention the test class name so learners can `mvn -Dtest=... test`.

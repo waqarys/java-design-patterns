@@ -1,3 +1,6 @@
-=== Persistent Collections problem: playlist edits ===
-orig=Vector(1, 2, 3) doubled=Vector(2, 4, 6)
-max=9
+=== Persistent collections: playlist edits ===
+--- naive ---
+[a]
+--- persistent ---
+[a]
+[a, b]

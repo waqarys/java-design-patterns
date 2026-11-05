@@ -1,6 +1,6 @@
 # Option / Maybe
 
-**Season:** 6 · FP Foundations · **Category:** Functional · **Level:** Intermediate · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar
+**Season:** 6 · FP Foundations · **Category:** Functional · **Level:** Intermediate · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar
 
 ## Problem
 **Parse positive port without null**
@@ -24,16 +24,12 @@ failure, or couple call sites to a third-party shape. That feels fast on day one
 on day thirty.
 
 ```java
-package com.buildwithwaqar.patterns.functional.option;
+package com.buildwithwaqar.patterns.functional.option.problem;
 
-import com.buildwithwaqar.patterns.functional.option.ZazrOptionDemo;
-/** Problem: parse a positive port from config without null or exceptions at call sites. */
-public final class UseCaseDemo {
-  public static void main(String[] a) {
-    System.out.println("=== Option problem: positive port ===");
-    System.out.println(ZazrOptionDemo.describe(ZazrOptionDemo.parsePositive("8080")));
-    System.out.println(ZazrOptionDemo.describe(ZazrOptionDemo.parsePositive("-1")));
-  }
+import java.util.*;
+
+public final class NaivePort {
+  public static Integer parse(String s){ try { int p=Integer.parseInt(s); return p>0?p:null; } catch(Exception e){ return null; } }
 }
 
 ```
@@ -59,31 +55,36 @@ or distributed details behind it.
 
 ### Stage 2 — Encode the solution
 ```java
-package com.buildwithwaqar.patterns.functional.option;
+package com.buildwithwaqar.patterns.functional.option.problem;
 
-import com.buildwithwaqar.patterns.functional.option.ZazrOptionDemo;
-/** Problem: parse a positive port from config without null or exceptions at call sites. */
-public final class UseCaseDemo {
-  public static void main(String[] a) {
-    System.out.println("=== Option problem: positive port ===");
-    System.out.println(ZazrOptionDemo.describe(ZazrOptionDemo.parsePositive("8080")));
-    System.out.println(ZazrOptionDemo.describe(ZazrOptionDemo.parsePositive("-1")));
+import java.util.*;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.*;
+import java.util.concurrent.locks.*;
+import java.util.function.*;
+
+final class Port {
+  static OptionalInt parse(String s){
+    try { int p=Integer.parseInt(s); return p>0? OptionalInt.of(p): OptionalInt.empty(); }
+    catch(NumberFormatException e){ return OptionalInt.empty(); }
   }
+  static String describe(OptionalInt p){ return p.isPresent()? "port="+p.getAsInt(): "missing"; }
 }
 
 ```
 
 ### Stage 3 — Runnable main
 ```java
-package com.buildwithwaqar.patterns.functional.option;
-
-import com.buildwithwaqar.patterns.functional.option.ZazrOptionDemo;
-/** Problem: parse a positive port from config without null or exceptions at call sites. */
-public final class UseCaseDemo {
-  public static void main(String[] a) {
-    System.out.println("=== Option problem: positive port ===");
-    System.out.println(ZazrOptionDemo.describe(ZazrOptionDemo.parsePositive("8080")));
-    System.out.println(ZazrOptionDemo.describe(ZazrOptionDemo.parsePositive("-1")));
+package com.buildwithwaqar.patterns.functional.option.problem;
+import java.util.*; import java.util.concurrent.*; import java.util.concurrent.atomic.*;
+public final class ProblemDemo {
+  public static void main(String[] args) throws Exception {
+    System.out.println("=== Option: parse positive port ===");
+    System.out.println("--- naive ---"); System.out.println(NaivePort.parse("8080")); System.out.println(NaivePort.parse("-1"));
+System.out.println("--- option ---");
+System.out.println(Port.describe(Port.parse("8080")));
+System.out.println(Port.describe(Port.parse("nope")));
+System.out.println(Port.describe(Port.parse("0")));
   }
 }
 
@@ -93,8 +94,13 @@ public final class UseCaseDemo {
 Narrate each line. Do not invent numbers on camera.
 
 ```text
-=== Option problem: positive port ===
-got 8080
+=== Option: parse positive port ===
+--- naive ---
+8080
+null
+--- option ---
+port=8080
+missing
 missing
 ```
 
@@ -177,79 +183,3 @@ Java 25 / Zazr take, then slow down for when NOT to use Option.
 **[10:30]** *(interview + recap)*
 Two interview questions, three takeaways, link the GitHub episode folder. I am Waqar —
 see you in the next one.
-
-
-## Studio Notes for Build with Waqar
-When you record this episode, keep the energy practical. Start with the product pain, not the pattern name. Viewers stay when they feel the bug before they learn the label. In CapCut, overlay the slide number in the corner and cut idle IDE scrolling. If a code block is long, zoom CapCut to the highlighted lines rather than shrinking the font on the slide. Re-run the Demo live once if your machine allows — viewers trust a terminal more than a screenshot. Finally, end with a single actionable challenge: ask them to open the repo, run the Demo, and mutate one assertion in the test to see the failure. That turns passive watching into practice.
-
-### CapCut Checklist
-- Import `slides.pdf` or the PNG sequence at 1920×1080.
-- Align voiceover to the timestamps in the Video Script section.
-- Keep lower-thirds short: pattern name + one-line intent.
-- Add a pinned comment with the GitHub path to this episode folder.
-
-### Common Recording Mistakes
-- Reading UML without showing running output.
-- Skipping the "when NOT to use" section — that is what seniors listen for.
-- Rushing trade-offs. Slow down here; it is interview gold.
-- Forgetting to mention the test class name so learners can `mvn -Dtest=... test`.
-
-
-## Practice Drill (Do This After Watching)
-1. Clone `waqarys/java-design-patterns` and set `JAVA_HOME` to JDK 25.
-2. Run the episode Demo (`mvn -q exec:java -Dexec.mainClass=...` or `java -cp ... Demo`).
-3. Break the implementation on purpose; watch the test fail; restore it.
-4. Write one alternative design in a scratch branch and compare readability.
-5. Explain the pattern out loud in sixty seconds without looking at notes — that is your introspective for interviews.
-
-## Glossary
-- **Force:** the design pressure (extensibility, coupling, allocation, testability) that makes a pattern worth considering.
-- **Role:** a participant name from the pattern (Context, Strategy, Client, Creator, Product).
-- **Smell:** a code signal that a force is unresolved (telescoping constructors, instanceof forests, god classes).
-- **Modernization:** the Java 25 / Zazr encoding that preserves the force-resolution with less ceremony.
-
-
-## Problem Deep Dive
-The concrete problem for this episode is: **Parse positive port without null**.
-
-Walk the naive path slowly on camera. Ask viewers what breaks first when requirements change —
-a new file to load, a new payment currency, a new saga step, a new illegal state transition.
-That question is the force. The pattern is just the name we give the force once we have felt it.
-
-Then open the solution types and show the boundary: what the rest of the app is allowed to
-depend on, and what stays hidden. Highlight how the runnable main prints a meaningful trace —
-happy path and at least one failure path — so CapCut can cut between IDE and terminal without
-inventing numbers.
-
-Finally, spend a full minute on trade-offs. Seniors stay for the "when not". Juniors need the
-happy path. Your job on Build with Waqar is both.
-
-
-## Studio Notes for Build with Waqar
-When you record this episode, keep the energy practical. Start with the product pain, not the pattern name. Viewers stay when they feel the bug before they learn the label. In CapCut, overlay the slide number in the corner and cut idle IDE scrolling. If a code block is long, zoom CapCut to the highlighted lines rather than shrinking the font on the slide. Re-run the Demo live once if your machine allows — viewers trust a terminal more than a screenshot. Finally, end with a single actionable challenge: ask them to open the repo, run the Demo, and mutate one assertion in the test to see the failure. That turns passive watching into practice.
-
-### CapCut Checklist
-- Import `slides.pdf` or the PNG sequence at 1920×1080.
-- Align voiceover to the timestamps in the Video Script section.
-- Keep lower-thirds short: pattern name + one-line intent.
-- Add a pinned comment with the GitHub path to this episode folder.
-
-### Common Recording Mistakes
-- Reading UML without showing running output.
-- Skipping the "when NOT to use" section — that is what seniors listen for.
-- Rushing trade-offs. Slow down here; it is interview gold.
-- Forgetting to mention the test class name so learners can `mvn -Dtest=... test`.
-
-
-## Practice Drill (Do This After Watching)
-1. Clone `waqarys/java-design-patterns` and set `JAVA_HOME` to JDK 25.
-2. Run the episode Demo (`mvn -q exec:java -Dexec.mainClass=...` or `java -cp ... Demo`).
-3. Break the implementation on purpose; watch the test fail; restore it.
-4. Write one alternative design in a scratch branch and compare readability.
-5. Explain the pattern out loud in sixty seconds without looking at notes — that is your introspective for interviews.
-
-## Glossary
-- **Force:** the design pressure (extensibility, coupling, allocation, testability) that makes a pattern worth considering.
-- **Role:** a participant name from the pattern (Context, Strategy, Client, Creator, Product).
-- **Smell:** a code signal that a force is unresolved (telescoping constructors, instanceof forests, god classes).
-- **Modernization:** the Java 25 / Zazr encoding that preserves the force-resolution with less ceremony.

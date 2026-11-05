@@ -1,3 +1,11 @@
-=== Lazy problem: deferred report ===
-before=0
-v=42 after=1 again=42 hits=1
+=== Lazy/IO: defer expensive report ===
+--- naive ---
+BUILD
+report
+--- lazy ---
+created
+BUILD
+report
+report
+--- io ---
+edge!

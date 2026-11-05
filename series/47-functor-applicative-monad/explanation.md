@@ -1,9 +1,9 @@
 # Functor, Applicative, Monad
 
-**Season:** 6 · FP Foundations · **Category:** Functional · **Level:** Intermediate · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar
+**Season:** 6 · FP Foundations · **Category:** Functional · **Level:** Intermediate · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar
 
 ## Problem
-**Map/flatMap Option via type-class witness**
+**Combine async user+order fetches into a dashboard view**
 
 This episode is built around that concrete problem — not a shared StreamForge framing.
 You will see a real naive implementation that hurts, a full pattern-based solution, a
@@ -11,11 +11,11 @@ runnable main with meaningful stdout, and JUnit failure-path coverage where the 
 
 ## Hook
 Welcome back to **Build with Waqar**. Today we earn **Functor/Applicative/Monad** by solving one problem well:
-*Map/flatMap Option via type-class witness*. By the end you will have walked naive pain → pattern refactor → real JDK 25
+*Combine async user+order fetches into a dashboard view*. By the end you will have walked naive pain → pattern refactor → real JDK 25
 stdout → trade-offs, with CapCut slides and a spoken script.
 
 ## Intent
-Functor/Applicative/Monad exists because this force kept showing up: map/flatmap option via type-class witness. Name the force, sketch
+Functor/Applicative/Monad exists because this force kept showing up: combine async user+order fetches into a dashboard view. Name the force, sketch
 the roles, and — critically — know when you would refuse the pattern.
 
 ## The Pain — Naive Design
@@ -24,17 +24,14 @@ failure, or couple call sites to a third-party shape. That feels fast on day one
 on day thirty.
 
 ```java
-package com.buildwithwaqar.patterns.functional.typeclass;
+package com.buildwithwaqar.patterns.functional.fam.problem;
 
-import com.buildwithwaqar.patterns.functional.typeclass.*;
-import dev.zazr.control.Option;
-/** Problem: map over Option via an explicit Monad dictionary (no HKTs). */
-public final class UseCaseDemo {
-  public static void main(String[] a) {
-    System.out.println("=== Typeclass/Monad problem: Option dictionary ===");
-    var fa = OptionKind.lift(Option.some(21));
-    System.out.println(OptionKind.lower(OptionKind.MONAD.map(fa, n -> n * 2)));
-  }
+/** Naive: nested null checks / sequential blocking gets — no composition. */
+public final class NaiveCombine {
+    public static AsyncDashboard.Dashboard combine(AsyncDashboard.User u, AsyncDashboard.Order o) {
+        if (u == null || o == null) return null;
+        return new AsyncDashboard.Dashboard(u.name(), o.totalCents());
+    }
 }
 
 ```
@@ -60,31 +57,58 @@ or distributed details behind it.
 
 ### Stage 2 — Encode the solution
 ```java
-package com.buildwithwaqar.patterns.functional.typeclass;
+package com.buildwithwaqar.patterns.functional.fam.problem;
 
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 
-public interface Applicative<F> extends Functor<F> {
-    <A> Kind<F, A> pure(A a);
-    <A, B> Kind<F, B> ap(Kind<F, Function<A, B>> ff, Kind<F, A> fa);
-}
+/**
+ * Functor / Applicative / Monad over Optional and CompletableFuture:
+ * combine async user + order fetches into a dashboard view.
+ */
+public final class AsyncDashboard {
+    private AsyncDashboard() {}
 
+    public record User(String id, String name) {}
+    public record Order(String id, String userId, int totalCents) {}
+    public record Dashboard(String name, int totalCents) {}
 
-package com.buildwithwaqar.patterns.functional.typeclass;
-
-import java.util.function.Function;
-
-public interface Monad<F> extends Applicative<F> {
-    <A, B> Kind<F, B> flatMap(Kind<F, A> fa, Function<? super A, ? extends Kind<F, B>> f);
-
-    @Override
-    default <A, B> Kind<F, B> map(Kind<F, A> fa, Function<? super A, ? extends B> f) {
-        return flatMap(fa, a -> pure(f.apply(a)));
+    // ---- Optional as Functor/Applicative/Monad ----
+    public static <A, B> Optional<B> map(Optional<A> fa, Function<A, B> f) { return fa.map(f); }
+    public static <A, B> Optional<B> flatMap(Optional<A> fa, Function<A, Optional<B>> f) { return fa.flatMap(f); }
+    public static <A, B, C> Optional<C> map2(Optional<A> fa, Optional<B> fb, BiFunction<A, B, C> f) {
+        return fa.flatMap(a -> fb.map(b -> f.apply(a, b)));
     }
 
-    @Override
-    default <A, B> Kind<F, B> ap(Kind<F, Function<A, B>> ff, Kind<F, A> fa) {
-        return flatMap(ff, f -> map(fa, f));
+    public static Optional<Dashboard> dashboardOpt(Optional<User> user, Optional<Order> order) {
+        return map2(user, order, (u, o) -> new Dashboard(u.name(), o.totalCents()));
+    }
+
+    // ---- CompletableFuture applicative-style zip ----
+    public static <A, B, C> CompletableFuture<C> map2Future(
+            CompletableFuture<A> fa, CompletableFuture<B> fb, BiFunction<A, B, C> f) {
+        return fa.thenCombine(fb, f);
+    }
+
+    public static CompletableFuture<Dashboard> dashboardAsync(
+            CompletableFuture<User> user, CompletableFuture<Order> order) {
+        return map2Future(user, order, (u, o) -> new Dashboard(u.name(), o.totalCents()));
+    }
+
+    public static CompletableFuture<User> fetchUser(String id, boolean ok) {
+        return CompletableFuture.supplyAsync(() -> {
+            if (!ok) throw new IllegalStateException("user-missing");
+            return new User(id, "User-" + id);
+        });
+    }
+
+    public static CompletableFuture<Order> fetchOrder(String id, String userId, boolean ok) {
+        return CompletableFuture.supplyAsync(() -> {
+            if (!ok) throw new IllegalStateException("order-missing");
+            return new Order(id, userId, 4200);
+        });
     }
 }
 
@@ -92,17 +116,38 @@ public interface Monad<F> extends Applicative<F> {
 
 ### Stage 3 — Runnable main
 ```java
-package com.buildwithwaqar.patterns.functional.typeclass;
+package com.buildwithwaqar.patterns.functional.fam.problem;
 
-import com.buildwithwaqar.patterns.functional.typeclass.*;
-import dev.zazr.control.Option;
-/** Problem: map over Option via an explicit Monad dictionary (no HKTs). */
-public final class UseCaseDemo {
-  public static void main(String[] a) {
-    System.out.println("=== Typeclass/Monad problem: Option dictionary ===");
-    var fa = OptionKind.lift(Option.some(21));
-    System.out.println(OptionKind.lower(OptionKind.MONAD.map(fa, n -> n * 2)));
-  }
+import java.util.Optional;
+import java.util.concurrent.CompletionException;
+
+public final class ProblemDemo {
+    public static void main(String[] args) throws Exception {
+        System.out.println("=== Functor/Applicative/Monad: async dashboard ===");
+        System.out.println("--- naive null combine ---");
+        System.out.println(NaiveCombine.combine(new AsyncDashboard.User("1", "Ada"), null));
+
+        System.out.println("--- Optional map2 ---");
+        System.out.println(AsyncDashboard.dashboardOpt(
+                Optional.of(new AsyncDashboard.User("1", "Ada")),
+                Optional.of(new AsyncDashboard.Order("o1", "1", 4200))));
+        System.out.println(AsyncDashboard.dashboardOpt(Optional.of(new AsyncDashboard.User("1", "Ada")), Optional.empty()));
+
+        System.out.println("--- CompletableFuture map2 ---");
+        var dash = AsyncDashboard.dashboardAsync(
+                AsyncDashboard.fetchUser("1", true),
+                AsyncDashboard.fetchOrder("o1", "1", true)).join();
+        System.out.println(dash);
+
+        System.out.println("--- failure path ---");
+        try {
+            AsyncDashboard.dashboardAsync(
+                    AsyncDashboard.fetchUser("1", true),
+                    AsyncDashboard.fetchOrder("o1", "1", false)).join();
+        } catch (CompletionException e) {
+            System.out.println("caught=" + e.getCause().getMessage());
+        }
+    }
 }
 
 ```
@@ -111,8 +156,16 @@ public final class UseCaseDemo {
 Narrate each line. Do not invent numbers on camera.
 
 ```text
-=== Typeclass/Monad problem: Option dictionary ===
-Some(42)
+=== Functor/Applicative/Monad: async dashboard ===
+--- naive null combine ---
+null
+--- Optional map2 ---
+Optional[Dashboard[name=Ada, totalCents=4200]]
+Optional.empty
+--- CompletableFuture map2 ---
+Dashboard[name=User-1, totalCents=4200]
+--- failure path ---
+caught=order-missing
 ```
 
 Trace: match each printed line to a stage above. Fork the repo, set `JAVA_HOME` to JDK 25,
@@ -144,7 +197,7 @@ State vs Strategy, Free vs Tagless). Say the distinguishing sentence out loud.
 
 ## Interview Q&A
 **Q1. What concrete problem does Functor/Applicative/Monad solve here?**
-A: Map/flatMap Option via type-class witness.
+A: Combine async user+order fetches into a dashboard view.
 
 **Q2. What does the naive design get wrong?**
 A: Point at the naive code smells from this episode.
@@ -160,7 +213,7 @@ A: Give a smaller counterexample where a function, Option, or facade is enough.
 A: Records, sealed types, virtual threads, Zazr control types — pick what applies.
 
 ## Key Takeaways
-- Lead with the problem: Map/flatMap Option via type-class witness.
+- Lead with the problem: Combine async user+order fetches into a dashboard view.
 - Show naive pain before naming Functor/Applicative/Monad.
 - Run the Demo; trust JDK 25 stdout.
 - Teach when NOT to use it.
@@ -170,7 +223,7 @@ Record for **Build with Waqar**. OBS for capture, CapCut for assembly. Import `s
 
 **[0:00]** *(slide 01 title)*
 Hey everyone, welcome back to Build with Waqar. Today we solve a real problem with Functor/Applicative/Monad:
-Map/flatMap Option via type-class witness.
+Combine async user+order fetches into a dashboard view.
 
 **[0:40]** *(slide 02–03 problem)*
 I am not starting with a definition. Here is the product pain. Keep these names — they
@@ -194,65 +247,3 @@ Java 25 / Zazr take, then slow down for when NOT to use Functor/Applicative/Mona
 **[10:30]** *(interview + recap)*
 Two interview questions, three takeaways, link the GitHub episode folder. I am Waqar —
 see you in the next one.
-
-
-## Studio Notes for Build with Waqar
-When you record this episode, keep the energy practical. Start with the product pain, not the pattern name. Viewers stay when they feel the bug before they learn the label. In CapCut, overlay the slide number in the corner and cut idle IDE scrolling. If a code block is long, zoom CapCut to the highlighted lines rather than shrinking the font on the slide. Re-run the Demo live once if your machine allows — viewers trust a terminal more than a screenshot. Finally, end with a single actionable challenge: ask them to open the repo, run the Demo, and mutate one assertion in the test to see the failure. That turns passive watching into practice.
-
-### CapCut Checklist
-- Import `slides.pdf` or the PNG sequence at 1920×1080.
-- Align voiceover to the timestamps in the Video Script section.
-- Keep lower-thirds short: pattern name + one-line intent.
-- Add a pinned comment with the GitHub path to this episode folder.
-
-### Common Recording Mistakes
-- Reading UML without showing running output.
-- Skipping the "when NOT to use" section — that is what seniors listen for.
-- Rushing trade-offs. Slow down here; it is interview gold.
-- Forgetting to mention the test class name so learners can `mvn -Dtest=... test`.
-
-
-## Practice Drill (Do This After Watching)
-1. Clone `waqarys/java-design-patterns` and set `JAVA_HOME` to JDK 25.
-2. Run the episode Demo (`mvn -q exec:java -Dexec.mainClass=...` or `java -cp ... Demo`).
-3. Break the implementation on purpose; watch the test fail; restore it.
-4. Write one alternative design in a scratch branch and compare readability.
-5. Explain the pattern out loud in sixty seconds without looking at notes — that is your introspective for interviews.
-
-## Glossary
-- **Force:** the design pressure (extensibility, coupling, allocation, testability) that makes a pattern worth considering.
-- **Role:** a participant name from the pattern (Context, Strategy, Client, Creator, Product).
-- **Smell:** a code signal that a force is unresolved (telescoping constructors, instanceof forests, god classes).
-- **Modernization:** the Java 25 / Zazr encoding that preserves the force-resolution with less ceremony.
-
-
-## Problem Deep Dive
-The concrete problem for this episode is: **Map/flatMap Option via type-class witness**.
-
-Walk the naive path slowly on camera. Ask viewers what breaks first when requirements change —
-a new file to load, a new payment currency, a new saga step, a new illegal state transition.
-That question is the force. The pattern is just the name we give the force once we have felt it.
-
-Then open the solution types and show the boundary: what the rest of the app is allowed to
-depend on, and what stays hidden. Highlight how the runnable main prints a meaningful trace —
-happy path and at least one failure path — so CapCut can cut between IDE and terminal without
-inventing numbers.
-
-Finally, spend a full minute on trade-offs. Seniors stay for the "when not". Juniors need the
-happy path. Your job on Build with Waqar is both.
-
-
-## Studio Notes for Build with Waqar
-When you record this episode, keep the energy practical. Start with the product pain, not the pattern name. Viewers stay when they feel the bug before they learn the label. In CapCut, overlay the slide number in the corner and cut idle IDE scrolling. If a code block is long, zoom CapCut to the highlighted lines rather than shrinking the font on the slide. Re-run the Demo live once if your machine allows — viewers trust a terminal more than a screenshot. Finally, end with a single actionable challenge: ask them to open the repo, run the Demo, and mutate one assertion in the test to see the failure. That turns passive watching into practice.
-
-### CapCut Checklist
-- Import `slides.pdf` or the PNG sequence at 1920×1080.
-- Align voiceover to the timestamps in the Video Script section.
-- Keep lower-thirds short: pattern name + one-line intent.
-- Add a pinned comment with the GitHub path to this episode folder.
-
-### Common Recording Mistakes
-- Reading UML without showing running output.
-- Skipping the "when NOT to use" section — that is what seniors listen for.
-- Rushing trade-offs. Slow down here; it is interview gold.
-- Forgetting to mention the test class name so learners can `mvn -Dtest=... test`.

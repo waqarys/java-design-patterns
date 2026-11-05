@@ -1,3 +1,6 @@
-=== Validation problem: signup accumulates errors ===
-welcome a@b.c
-email has no @, age under 18
+=== Validation: signup accumulates errors ===
+--- naive ---
+caught=email
+--- validation ---
+Valid[value=welcome a@b.c]
+Invalid[errs=[email has no @, age under 18]]

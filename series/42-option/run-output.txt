@@ -1,3 +1,8 @@
-=== Option problem: positive port ===
-got 8080
+=== Option: parse positive port ===
+--- naive ---
+8080
+null
+--- option ---
+port=8080
+missing
 missing

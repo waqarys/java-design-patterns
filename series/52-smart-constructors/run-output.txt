@@ -1,3 +1,12 @@
-=== Option problem: positive port ===
-got 8080
-missing
+=== Smart Constructors: Money / Email / IBAN ===
+--- naive allows illegal states ---
+RawMoney[currency=US, cents=-5]
+RawEmail[value=not-an-email]
+RawIban[value=xx]
+--- smart constructors ---
+money=Optional[USD:1999]
+badMoney=Optional.empty
+email=Optional[a@b.c]
+badEmail=Optional.empty
+iban=Optional[DE89370400440532013000]
+badIban=Optional.empty

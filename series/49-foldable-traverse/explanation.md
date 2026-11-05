@@ -1,6 +1,6 @@
 # Foldable & Traverse
 
-**Season:** 6 · FP Foundations · **Category:** Functional · **Level:** Intermediate · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar
+**Season:** 6 · FP Foundations · **Category:** Functional · **Level:** Intermediate · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar
 
 ## Problem
 **Fold scores; traverse validated IDs**
@@ -24,17 +24,12 @@ failure, or couple call sites to a third-party shape. That feels fast on day one
 on day thirty.
 
 ```java
-package com.buildwithwaqar.patterns.functional.foldable;
+package com.buildwithwaqar.patterns.functional.foldable.problem;
 
-import com.buildwithwaqar.patterns.functional.foldable.Foldable;
-import com.buildwithwaqar.patterns.functional.monoid.Monoids;
-import java.util.List;
-/** Problem: generic fold of scores with a monoid. */
-public final class UseCaseDemo {
-  public static void main(String[] a) {
-    System.out.println("=== Foldable problem: score totals ===");
-    System.out.println(Foldable.fold(List.of(10,20,30), Monoids.INT_SUM));
-  }
+import java.util.*;
+
+public final class NaiveFold {
+  public static int sum(List<Integer> xs){ return xs.stream().mapToInt(i->i).sum(); }
 }
 
 ```
@@ -60,55 +55,36 @@ or distributed details behind it.
 
 ### Stage 2 — Encode the solution
 ```java
-package com.buildwithwaqar.patterns.functional.foldable;
+package com.buildwithwaqar.patterns.functional.foldable.problem;
 
-import com.buildwithwaqar.patterns.functional.monoid.Monoid;
-import com.buildwithwaqar.patterns.functional.typeclass.Applicative;
-import com.buildwithwaqar.patterns.functional.typeclass.Kind;
+import java.util.*;
+import java.util.function.*;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.function.BiFunction;
-import java.util.function.Function;
-
-/** Foldable + Traverse for List — educational encodings. */
-public final class Foldable {
-    private Foldable() {}
-
-    public static <A, B> B foldLeft(List<A> xs, B z, BiFunction<B, A, B> f) {
-        B acc = z;
-        for (A x : xs) acc = f.apply(acc, x);
-        return acc;
-    }
-
-    public static <A> A fold(List<A> xs, Monoid<A> m) {
-        return foldLeft(xs, m.empty(), m::combine);
-    }
-
-    public static <F, A, B> Kind<F, List<B>> traverse(Applicative<F> A, List<A> xs, Function<A, Kind<F, B>> f) {
-        Kind<F, List<B>> acc = A.pure(new ArrayList<>());
-        for (A x : xs) {
-            Kind<F, B> fb = f.apply(x);
-            acc = A.ap(A.map(acc, list -> (b -> { list.add(b); return list; })), fb);
-        }
-        return acc;
-    }
+final class Foldables {
+  static int foldLeft(List<Integer> xs, int z, java.util.function.IntBinaryOperator op){
+    int acc=z; for(int x: xs) acc=op.applyAsInt(acc,x); return acc;
+  }
+  static Optional<List<Integer>> traverse(List<String> ids, Function<String, Optional<Integer>> parse){
+    List<Integer> out=new ArrayList<>();
+    for(String id: ids){ var p=parse.apply(id); if(p.isEmpty()) return Optional.empty(); out.add(p.get()); }
+    return Optional.of(out);
+  }
 }
 
 ```
 
 ### Stage 3 — Runnable main
 ```java
-package com.buildwithwaqar.patterns.functional.foldable;
-
-import com.buildwithwaqar.patterns.functional.foldable.Foldable;
-import com.buildwithwaqar.patterns.functional.monoid.Monoids;
-import java.util.List;
-/** Problem: generic fold of scores with a monoid. */
-public final class UseCaseDemo {
-  public static void main(String[] a) {
-    System.out.println("=== Foldable problem: score totals ===");
-    System.out.println(Foldable.fold(List.of(10,20,30), Monoids.INT_SUM));
+package com.buildwithwaqar.patterns.functional.foldable.problem;
+import java.util.*; import java.util.function.*;
+public final class ProblemDemo {
+  public static void main(String[] args) {
+    System.out.println("=== Foldable/Traverse: scores + validated IDs ===");
+    System.out.println("--- naive ---"); System.out.println(NaiveFold.sum(List.of(1,2,3)));
+System.out.println("--- foldable ---");
+System.out.println(Foldables.foldLeft(List.of(1,2,3), 0, Integer::sum));
+System.out.println(Foldables.traverse(List.of("1","2"), s -> { try{return Optional.of(Integer.parseInt(s));}catch(Exception e){return Optional.empty();} }));
+System.out.println(Foldables.traverse(List.of("1","x"), s -> { try{return Optional.of(Integer.parseInt(s));}catch(Exception e){return Optional.empty();} }));
   }
 }
 
@@ -118,8 +94,13 @@ public final class UseCaseDemo {
 Narrate each line. Do not invent numbers on camera.
 
 ```text
-=== Foldable problem: score totals ===
-60
+=== Foldable/Traverse: scores + validated IDs ===
+--- naive ---
+6
+--- foldable ---
+6
+Optional[[1, 2]]
+Optional.empty
 ```
 
 Trace: match each printed line to a stage above. Fork the repo, set `JAVA_HOME` to JDK 25,
@@ -201,65 +182,3 @@ Java 25 / Zazr take, then slow down for when NOT to use Foldable/Traverse.
 **[10:30]** *(interview + recap)*
 Two interview questions, three takeaways, link the GitHub episode folder. I am Waqar —
 see you in the next one.
-
-
-## Studio Notes for Build with Waqar
-When you record this episode, keep the energy practical. Start with the product pain, not the pattern name. Viewers stay when they feel the bug before they learn the label. In CapCut, overlay the slide number in the corner and cut idle IDE scrolling. If a code block is long, zoom CapCut to the highlighted lines rather than shrinking the font on the slide. Re-run the Demo live once if your machine allows — viewers trust a terminal more than a screenshot. Finally, end with a single actionable challenge: ask them to open the repo, run the Demo, and mutate one assertion in the test to see the failure. That turns passive watching into practice.
-
-### CapCut Checklist
-- Import `slides.pdf` or the PNG sequence at 1920×1080.
-- Align voiceover to the timestamps in the Video Script section.
-- Keep lower-thirds short: pattern name + one-line intent.
-- Add a pinned comment with the GitHub path to this episode folder.
-
-### Common Recording Mistakes
-- Reading UML without showing running output.
-- Skipping the "when NOT to use" section — that is what seniors listen for.
-- Rushing trade-offs. Slow down here; it is interview gold.
-- Forgetting to mention the test class name so learners can `mvn -Dtest=... test`.
-
-
-## Practice Drill (Do This After Watching)
-1. Clone `waqarys/java-design-patterns` and set `JAVA_HOME` to JDK 25.
-2. Run the episode Demo (`mvn -q exec:java -Dexec.mainClass=...` or `java -cp ... Demo`).
-3. Break the implementation on purpose; watch the test fail; restore it.
-4. Write one alternative design in a scratch branch and compare readability.
-5. Explain the pattern out loud in sixty seconds without looking at notes — that is your introspective for interviews.
-
-## Glossary
-- **Force:** the design pressure (extensibility, coupling, allocation, testability) that makes a pattern worth considering.
-- **Role:** a participant name from the pattern (Context, Strategy, Client, Creator, Product).
-- **Smell:** a code signal that a force is unresolved (telescoping constructors, instanceof forests, god classes).
-- **Modernization:** the Java 25 / Zazr encoding that preserves the force-resolution with less ceremony.
-
-
-## Problem Deep Dive
-The concrete problem for this episode is: **Fold scores; traverse validated IDs**.
-
-Walk the naive path slowly on camera. Ask viewers what breaks first when requirements change —
-a new file to load, a new payment currency, a new saga step, a new illegal state transition.
-That question is the force. The pattern is just the name we give the force once we have felt it.
-
-Then open the solution types and show the boundary: what the rest of the app is allowed to
-depend on, and what stays hidden. Highlight how the runnable main prints a meaningful trace —
-happy path and at least one failure path — so CapCut can cut between IDE and terminal without
-inventing numbers.
-
-Finally, spend a full minute on trade-offs. Seniors stay for the "when not". Juniors need the
-happy path. Your job on Build with Waqar is both.
-
-
-## Studio Notes for Build with Waqar
-When you record this episode, keep the energy practical. Start with the product pain, not the pattern name. Viewers stay when they feel the bug before they learn the label. In CapCut, overlay the slide number in the corner and cut idle IDE scrolling. If a code block is long, zoom CapCut to the highlighted lines rather than shrinking the font on the slide. Re-run the Demo live once if your machine allows — viewers trust a terminal more than a screenshot. Finally, end with a single actionable challenge: ask them to open the repo, run the Demo, and mutate one assertion in the test to see the failure. That turns passive watching into practice.
-
-### CapCut Checklist
-- Import `slides.pdf` or the PNG sequence at 1920×1080.
-- Align voiceover to the timestamps in the Video Script section.
-- Keep lower-thirds short: pattern name + one-line intent.
-- Add a pinned comment with the GitHub path to this episode folder.
-
-### Common Recording Mistakes
-- Reading UML without showing running output.
-- Skipping the "when NOT to use" section — that is what seniors listen for.
-- Rushing trade-offs. Slow down here; it is interview gold.
-- Forgetting to mention the test class name so learners can `mvn -Dtest=... test`.

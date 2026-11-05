@@ -1,4 +1,7 @@
-=== ADT/Smart Constructor problem ===
-Right(Email[value=waqar@bwq.dev])
-Left(invalid email)
-card ****4242 999
+=== ADTs: exhaustive Payment describe ===
+--- naive ---
+card:10
+--- ADT ---
+card ****1234 1999
+cash 500
+wire DE89 10000

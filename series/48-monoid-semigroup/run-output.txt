@@ -1,3 +1,6 @@
-=== Monoid problem: fold totals/logs ===
-total=400
-audit=reserve;charge;ship;
+=== Monoid: fold invoice totals ===
+--- naive ---
+60
+--- monoid ---
+60
+abc

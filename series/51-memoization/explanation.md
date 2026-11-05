@@ -1,9 +1,9 @@
 # Memoization
 
-**Season:** 6 · FP Foundations · **Category:** Functional · **Level:** Intermediate · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar
+**Season:** 6 · FP Foundations · **Category:** Functional · **Level:** Intermediate · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar
 
 ## Problem
-**Cache fib/square for hot keys**
+**Cache coin-change DP / tax-rate lookups with call-count trace**
 
 This episode is built around that concrete problem — not a shared StreamForge framing.
 You will see a real naive implementation that hurts, a full pattern-based solution, a
@@ -11,11 +11,11 @@ runnable main with meaningful stdout, and JUnit failure-path coverage where the 
 
 ## Hook
 Welcome back to **Build with Waqar**. Today we earn **Memoization** by solving one problem well:
-*Cache fib/square for hot keys*. By the end you will have walked naive pain → pattern refactor → real JDK 25
+*Cache coin-change DP / tax-rate lookups with call-count trace*. By the end you will have walked naive pain → pattern refactor → real JDK 25
 stdout → trade-offs, with CapCut slides and a spoken script.
 
 ## Intent
-Memoization exists because this force kept showing up: cache fib/square for hot keys. Name the force, sketch
+Memoization exists because this force kept showing up: cache coin-change dp / tax-rate lookups with call-count trace. Name the force, sketch
 the roles, and — critically — know when you would refuse the pattern.
 
 ## The Pain — Naive Design
@@ -24,20 +24,33 @@ failure, or couple call sites to a third-party shape. That feels fast on day one
 on day thirty.
 
 ```java
-package com.buildwithwaqar.patterns.functional.functions;
+package com.buildwithwaqar.patterns.functional.memoization.problem;
 
-import com.buildwithwaqar.patterns.functional.functions.Fn;
-import java.util.concurrent.atomic.AtomicInteger;
-/** Problem: build a pricing pipeline and memoize hot square lookups. */
-public final class UseCaseDemo {
-  public static void main(String[] a) {
-    System.out.println("=== Currying/Memoization problem ===");
-    var add = Fn.curry((Integer x, Integer y) -> x + y);
-    System.out.println("curry=" + add.apply(2).apply(40));
-    var hits = new AtomicInteger();
-    var memo = Fn.memoize((Integer x) -> { hits.incrementAndGet(); return x * x; });
-    System.out.println("memo=" + memo.apply(12) + "," + memo.apply(12) + " hits=" + hits.get());
-  }
+public final class ProblemDemo {
+    public static void main(String[] args) {
+        System.out.println("=== Memoization: coin-change DP + tax lookup ===");
+        int[] coins = {1, 5, 10, 25};
+        int amount = 30;
+
+        var naiveC = new CoinChangeMemo.Counter();
+        long t0 = System.nanoTime();
+        int naive = CoinChangeMemo.naiveWays(amount, coins, naiveC);
+        long naiveMs = (System.nanoTime() - t0) / 1_000_000;
+        System.out.println("naive ways=" + naive + " calls=" + naiveC.get() + " ms=" + naiveMs);
+
+        var memoC = new CoinChangeMemo.Counter();
+        t0 = System.nanoTime();
+        int memo = CoinChangeMemo.memoWays(amount, coins, memoC);
+        long memoMs = (System.nanoTime() - t0) / 1_000_000;
+        System.out.println("memo  ways=" + memo + " calls=" + memoC.get() + " ms=" + memoMs);
+
+        System.out.println("--- tax-rate lookup memoize ---");
+        var taxC = new CoinChangeMemo.Counter();
+        var tax = CoinChangeMemo.memoize(CoinChangeMemo::expensiveTaxRate, taxC);
+        long t1 = System.nanoTime();
+        System.out.println("CA1=" + tax.apply("CA") + " CA2=" + tax.apply("CA") + " NY=" + tax.apply("NY"));
+        System.out.println("computeCalls=" + taxC.get() + " elapsedMs=" + (System.nanoTime() - t1) / 1_000_000);
+    }
 }
 
 ```
@@ -63,26 +76,70 @@ or distributed details behind it.
 
 ### Stage 2 — Encode the solution
 ```java
-package com.buildwithwaqar.patterns.functional.functions;
+package com.buildwithwaqar.patterns.functional.memoization.problem;
 
+import java.util.Arrays;
+import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 
-public final class Fn {
-    private Fn() {}
+/** Memoized coin-change DP + tax-rate lookup with call-count / timing traces. */
+public final class CoinChangeMemo {
+    private CoinChangeMemo() {}
 
-    public static <A, B, C> Function<A, Function<B, C>> curry(java.util.function.BiFunction<A, B, C> f) {
-        return a -> b -> f.apply(a, b);
+    public static final class Counter {
+        private final AtomicInteger calls = new AtomicInteger();
+        public int inc() { return calls.incrementAndGet(); }
+        public int get() { return calls.get(); }
+        public void reset() { calls.set(0); }
     }
 
-    public static <A, B, C> Function<A, C> compose(Function<B, C> g, Function<A, B> f) {
-        return a -> g.apply(f.apply(a));
+    /** Naive exponential recursion. */
+    public static int naiveWays(int amount, int[] coins, Counter c) {
+        c.inc();
+        if (amount == 0) return 1;
+        if (amount < 0 || coins.length == 0) return 0;
+        int with = naiveWays(amount - coins[0], coins, c);
+        int without = naiveWays(amount, Arrays.copyOfRange(coins, 1, coins.length), c);
+        return with + without;
     }
 
-    public static <A, B> Function<A, B> memoize(Function<A, B> f) {
-        Map<A, B> cache = new ConcurrentHashMap<>();
-        return a -> cache.computeIfAbsent(a, f);
+    public static int memoWays(int amount, int[] coins, Counter c) {
+        return memoWays(amount, coins, 0, new HashMap<>(), c);
+    }
+
+    private static int memoWays(int amount, int[] coins, int i, Map<String, Integer> cache, Counter c) {
+        c.inc();
+        if (amount == 0) return 1;
+        if (amount < 0 || i >= coins.length) return 0;
+        String key = amount + ":" + i;
+        Integer hit = cache.get(key);
+        if (hit != null) return hit;
+        int with = memoWays(amount - coins[i], coins, i, cache, c);
+        int without = memoWays(amount, coins, i + 1, cache, c);
+        int ans = with + without;
+        cache.put(key, ans);
+        return ans;
+    }
+
+    /** Generic memoize wrapper for expensive lookups. */
+    public static <A, B> Function<A, B> memoize(Function<A, B> f, Counter c) {
+        Map<A, B> cache = new HashMap<>();
+        return a -> {
+            if (cache.containsKey(a)) return cache.get(a);
+            c.inc();
+            B b = f.apply(a);
+            cache.put(a, b);
+            return b;
+        };
+    }
+
+    public static int expensiveTaxRate(String region) {
+        try { Thread.sleep(5); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
+        return switch (region) {
+            case "CA" -> 725; case "NY" -> 800; default -> 500;
+        };
     }
 }
 
@@ -90,20 +147,33 @@ public final class Fn {
 
 ### Stage 3 — Runnable main
 ```java
-package com.buildwithwaqar.patterns.functional.functions;
+package com.buildwithwaqar.patterns.functional.memoization.problem;
 
-import com.buildwithwaqar.patterns.functional.functions.Fn;
-import java.util.concurrent.atomic.AtomicInteger;
-/** Problem: build a pricing pipeline and memoize hot square lookups. */
-public final class UseCaseDemo {
-  public static void main(String[] a) {
-    System.out.println("=== Currying/Memoization problem ===");
-    var add = Fn.curry((Integer x, Integer y) -> x + y);
-    System.out.println("curry=" + add.apply(2).apply(40));
-    var hits = new AtomicInteger();
-    var memo = Fn.memoize((Integer x) -> { hits.incrementAndGet(); return x * x; });
-    System.out.println("memo=" + memo.apply(12) + "," + memo.apply(12) + " hits=" + hits.get());
-  }
+public final class ProblemDemo {
+    public static void main(String[] args) {
+        System.out.println("=== Memoization: coin-change DP + tax lookup ===");
+        int[] coins = {1, 5, 10, 25};
+        int amount = 30;
+
+        var naiveC = new CoinChangeMemo.Counter();
+        long t0 = System.nanoTime();
+        int naive = CoinChangeMemo.naiveWays(amount, coins, naiveC);
+        long naiveMs = (System.nanoTime() - t0) / 1_000_000;
+        System.out.println("naive ways=" + naive + " calls=" + naiveC.get() + " ms=" + naiveMs);
+
+        var memoC = new CoinChangeMemo.Counter();
+        t0 = System.nanoTime();
+        int memo = CoinChangeMemo.memoWays(amount, coins, memoC);
+        long memoMs = (System.nanoTime() - t0) / 1_000_000;
+        System.out.println("memo  ways=" + memo + " calls=" + memoC.get() + " ms=" + memoMs);
+
+        System.out.println("--- tax-rate lookup memoize ---");
+        var taxC = new CoinChangeMemo.Counter();
+        var tax = CoinChangeMemo.memoize(CoinChangeMemo::expensiveTaxRate, taxC);
+        long t1 = System.nanoTime();
+        System.out.println("CA1=" + tax.apply("CA") + " CA2=" + tax.apply("CA") + " NY=" + tax.apply("NY"));
+        System.out.println("computeCalls=" + taxC.get() + " elapsedMs=" + (System.nanoTime() - t1) / 1_000_000);
+    }
 }
 
 ```
@@ -112,9 +182,12 @@ public final class UseCaseDemo {
 Narrate each line. Do not invent numbers on camera.
 
 ```text
-=== Currying/Memoization problem ===
-curry=42
-memo=144,144 hits=1
+=== Memoization: coin-change DP + tax lookup ===
+naive ways=18 calls=961 ms=0
+memo  ways=18 calls=241 ms=1
+--- tax-rate lookup memoize ---
+CA1=725 CA2=725 NY=800
+computeCalls=2 elapsedMs=12
 ```
 
 Trace: match each printed line to a stage above. Fork the repo, set `JAVA_HOME` to JDK 25,
@@ -146,7 +219,7 @@ State vs Strategy, Free vs Tagless). Say the distinguishing sentence out loud.
 
 ## Interview Q&A
 **Q1. What concrete problem does Memoization solve here?**
-A: Cache fib/square for hot keys.
+A: Cache coin-change DP / tax-rate lookups with call-count trace.
 
 **Q2. What does the naive design get wrong?**
 A: Point at the naive code smells from this episode.
@@ -162,7 +235,7 @@ A: Give a smaller counterexample where a function, Option, or facade is enough.
 A: Records, sealed types, virtual threads, Zazr control types — pick what applies.
 
 ## Key Takeaways
-- Lead with the problem: Cache fib/square for hot keys.
+- Lead with the problem: Cache coin-change DP / tax-rate lookups with call-count trace.
 - Show naive pain before naming Memoization.
 - Run the Demo; trust JDK 25 stdout.
 - Teach when NOT to use it.
@@ -172,7 +245,7 @@ Record for **Build with Waqar**. OBS for capture, CapCut for assembly. Import `s
 
 **[0:00]** *(slide 01 title)*
 Hey everyone, welcome back to Build with Waqar. Today we solve a real problem with Memoization:
-Cache fib/square for hot keys.
+Cache coin-change DP / tax-rate lookups with call-count trace.
 
 **[0:40]** *(slide 02–03 problem)*
 I am not starting with a definition. Here is the product pain. Keep these names — they
@@ -196,65 +269,3 @@ Java 25 / Zazr take, then slow down for when NOT to use Memoization.
 **[10:30]** *(interview + recap)*
 Two interview questions, three takeaways, link the GitHub episode folder. I am Waqar —
 see you in the next one.
-
-
-## Studio Notes for Build with Waqar
-When you record this episode, keep the energy practical. Start with the product pain, not the pattern name. Viewers stay when they feel the bug before they learn the label. In CapCut, overlay the slide number in the corner and cut idle IDE scrolling. If a code block is long, zoom CapCut to the highlighted lines rather than shrinking the font on the slide. Re-run the Demo live once if your machine allows — viewers trust a terminal more than a screenshot. Finally, end with a single actionable challenge: ask them to open the repo, run the Demo, and mutate one assertion in the test to see the failure. That turns passive watching into practice.
-
-### CapCut Checklist
-- Import `slides.pdf` or the PNG sequence at 1920×1080.
-- Align voiceover to the timestamps in the Video Script section.
-- Keep lower-thirds short: pattern name + one-line intent.
-- Add a pinned comment with the GitHub path to this episode folder.
-
-### Common Recording Mistakes
-- Reading UML without showing running output.
-- Skipping the "when NOT to use" section — that is what seniors listen for.
-- Rushing trade-offs. Slow down here; it is interview gold.
-- Forgetting to mention the test class name so learners can `mvn -Dtest=... test`.
-
-
-## Practice Drill (Do This After Watching)
-1. Clone `waqarys/java-design-patterns` and set `JAVA_HOME` to JDK 25.
-2. Run the episode Demo (`mvn -q exec:java -Dexec.mainClass=...` or `java -cp ... Demo`).
-3. Break the implementation on purpose; watch the test fail; restore it.
-4. Write one alternative design in a scratch branch and compare readability.
-5. Explain the pattern out loud in sixty seconds without looking at notes — that is your introspective for interviews.
-
-## Glossary
-- **Force:** the design pressure (extensibility, coupling, allocation, testability) that makes a pattern worth considering.
-- **Role:** a participant name from the pattern (Context, Strategy, Client, Creator, Product).
-- **Smell:** a code signal that a force is unresolved (telescoping constructors, instanceof forests, god classes).
-- **Modernization:** the Java 25 / Zazr encoding that preserves the force-resolution with less ceremony.
-
-
-## Problem Deep Dive
-The concrete problem for this episode is: **Cache fib/square for hot keys**.
-
-Walk the naive path slowly on camera. Ask viewers what breaks first when requirements change —
-a new file to load, a new payment currency, a new saga step, a new illegal state transition.
-That question is the force. The pattern is just the name we give the force once we have felt it.
-
-Then open the solution types and show the boundary: what the rest of the app is allowed to
-depend on, and what stays hidden. Highlight how the runnable main prints a meaningful trace —
-happy path and at least one failure path — so CapCut can cut between IDE and terminal without
-inventing numbers.
-
-Finally, spend a full minute on trade-offs. Seniors stay for the "when not". Juniors need the
-happy path. Your job on Build with Waqar is both.
-
-
-## Studio Notes for Build with Waqar
-When you record this episode, keep the energy practical. Start with the product pain, not the pattern name. Viewers stay when they feel the bug before they learn the label. In CapCut, overlay the slide number in the corner and cut idle IDE scrolling. If a code block is long, zoom CapCut to the highlighted lines rather than shrinking the font on the slide. Re-run the Demo live once if your machine allows — viewers trust a terminal more than a screenshot. Finally, end with a single actionable challenge: ask them to open the repo, run the Demo, and mutate one assertion in the test to see the failure. That turns passive watching into practice.
-
-### CapCut Checklist
-- Import `slides.pdf` or the PNG sequence at 1920×1080.
-- Align voiceover to the timestamps in the Video Script section.
-- Keep lower-thirds short: pattern name + one-line intent.
-- Add a pinned comment with the GitHub path to this episode folder.
-
-### Common Recording Mistakes
-- Reading UML without showing running output.
-- Skipping the "when NOT to use" section — that is what seniors listen for.
-- Rushing trade-offs. Slow down here; it is interview gold.
-- Forgetting to mention the test class name so learners can `mvn -Dtest=... test`.

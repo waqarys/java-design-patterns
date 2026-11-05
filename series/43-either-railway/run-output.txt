@@ -1,4 +1,7 @@
-=== Either problem: railway ID validation ===
-ok:id-42
-err:not an int: nope
-err:not positive: -1
+=== Either: user id railway ===
+--- naive ---
+caught
+--- either ---
+Right[value=user:42]
+Left[value=parse]
+Left[value=positive]

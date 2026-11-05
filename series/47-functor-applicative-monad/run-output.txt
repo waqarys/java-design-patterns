@@ -1,2 +1,10 @@
-=== Typeclass/Monad problem: Option dictionary ===
-Some(42)
+=== Functor/Applicative/Monad: async dashboard ===
+--- naive null combine ---
+null
+--- Optional map2 ---
+Optional[Dashboard[name=Ada, totalCents=4200]]
+Optional.empty
+--- CompletableFuture map2 ---
+Dashboard[name=User-1, totalCents=4200]
+--- failure path ---
+caught=order-missing

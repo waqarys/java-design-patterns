@@ -1,6 +1,6 @@
 # Either & Railway-Oriented Programming
 
-**Season:** 6 · FP Foundations · **Category:** Functional · **Level:** Intermediate · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar
+**Season:** 6 · FP Foundations · **Category:** Functional · **Level:** Intermediate · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar
 
 ## Problem
 **Validate user id pipeline without exceptions**
@@ -24,17 +24,12 @@ failure, or couple call sites to a third-party shape. That feels fast on day one
 on day thirty.
 
 ```java
-package com.buildwithwaqar.patterns.functional.either;
+package com.buildwithwaqar.patterns.functional.either.problem;
 
-import com.buildwithwaqar.patterns.functional.either.Railway;
-/** Problem: validate an ID through parse→positive without try/catch ladders. */
-public final class UseCaseDemo {
-  public static void main(String[] a) {
-    System.out.println("=== Either problem: railway ID validation ===");
-    System.out.println(Railway.explain(Railway.label("42")));
-    System.out.println(Railway.explain(Railway.label("nope")));
-    System.out.println(Railway.explain(Railway.label("-1")));
-  }
+import java.util.*;
+
+public final class NaiveUser {
+  public static String load(String id){ if(id==null) throw new RuntimeException("null"); return "user:"+id; }
 }
 
 ```
@@ -60,54 +55,43 @@ or distributed details behind it.
 
 ### Stage 2 — Encode the solution
 ```java
-package com.buildwithwaqar.patterns.functional.either;
+package com.buildwithwaqar.patterns.functional.either.problem;
 
-import dev.zazr.control.Either;
+import java.util.*;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.*;
+import java.util.concurrent.locks.*;
+import java.util.function.*;
 
-/** Railway-oriented programming with Zazr Either. */
-public final class Railway {
-    private Railway() {}
-
-    public static Either<String, Integer> parseInt(String raw) {
-        try {
-            return Either.right(Integer.parseInt(raw));
-        } catch (NumberFormatException e) {
-            return Either.left("not an int: " + raw);
-        }
-    }
-
-    public static Either<String, Integer> requirePositive(int n) {
-        return n > 0 ? Either.right(n) : Either.left("not positive: " + n);
-    }
-
-    public static Either<String, String> label(String raw) {
-        return parseInt(raw)
-                .flatMap(Railway::requirePositive)
-                .map(n -> "id-" + n);
-    }
-
-    public static String explain(Either<String, String> result) {
-        return switch (result) {
-            case Either.Right(var v) -> "ok:" + v;
-            case Either.Left(var err) -> "err:" + err;
-        };
-    }
+sealed interface Either<L,R> permits Left, Right { boolean isRight(); L left(); R right(); }
+record Left<L,R>(L value) implements Either<L,R> { public boolean isRight(){return false;} public L left(){return value;} public R right(){throw new IllegalStateException();} }
+record Right<L,R>(R value) implements Either<L,R> { public boolean isRight(){return true;} public L left(){throw new IllegalStateException();} public R right(){return value;} }
+final class UserPipeline {
+  static Either<String,Integer> parseInt(String s){ try { return new Right<>(Integer.parseInt(s)); } catch(Exception e){ return new Left<>("parse"); } }
+  static Either<String,Integer> requirePositive(int n){ return n>0? new Right<>(n): new Left<>("positive"); }
+  static Either<String,String> label(int n){ return new Right<>("user:"+n); }
+  static Either<String,String> run(String raw){
+    var a=parseInt(raw); if(!a.isRight()) return new Left<>(a.left());
+    var b=requirePositive(a.right()); if(!b.isRight()) return new Left<>(b.left());
+    return label(b.right());
+  }
 }
 
 ```
 
 ### Stage 3 — Runnable main
 ```java
-package com.buildwithwaqar.patterns.functional.either;
-
-import com.buildwithwaqar.patterns.functional.either.Railway;
-/** Problem: validate an ID through parse→positive without try/catch ladders. */
-public final class UseCaseDemo {
-  public static void main(String[] a) {
-    System.out.println("=== Either problem: railway ID validation ===");
-    System.out.println(Railway.explain(Railway.label("42")));
-    System.out.println(Railway.explain(Railway.label("nope")));
-    System.out.println(Railway.explain(Railway.label("-1")));
+package com.buildwithwaqar.patterns.functional.either.problem;
+import java.util.*; import java.util.concurrent.*; import java.util.concurrent.atomic.*;
+public final class ProblemDemo {
+  public static void main(String[] args) throws Exception {
+    System.out.println("=== Either: user id railway ===");
+    System.out.println("--- naive ---");
+try { System.out.println(NaiveUser.load(null)); } catch(Exception e){ System.out.println("caught"); }
+System.out.println("--- either ---");
+System.out.println(UserPipeline.run("42"));
+System.out.println(UserPipeline.run("x"));
+System.out.println(UserPipeline.run("-1"));
   }
 }
 
@@ -117,10 +101,13 @@ public final class UseCaseDemo {
 Narrate each line. Do not invent numbers on camera.
 
 ```text
-=== Either problem: railway ID validation ===
-ok:id-42
-err:not an int: nope
-err:not positive: -1
+=== Either: user id railway ===
+--- naive ---
+caught
+--- either ---
+Right[value=user:42]
+Left[value=parse]
+Left[value=positive]
 ```
 
 Trace: match each printed line to a stage above. Fork the repo, set `JAVA_HOME` to JDK 25,
@@ -202,65 +189,3 @@ Java 25 / Zazr take, then slow down for when NOT to use Either/Railway.
 **[10:30]** *(interview + recap)*
 Two interview questions, three takeaways, link the GitHub episode folder. I am Waqar —
 see you in the next one.
-
-
-## Studio Notes for Build with Waqar
-When you record this episode, keep the energy practical. Start with the product pain, not the pattern name. Viewers stay when they feel the bug before they learn the label. In CapCut, overlay the slide number in the corner and cut idle IDE scrolling. If a code block is long, zoom CapCut to the highlighted lines rather than shrinking the font on the slide. Re-run the Demo live once if your machine allows — viewers trust a terminal more than a screenshot. Finally, end with a single actionable challenge: ask them to open the repo, run the Demo, and mutate one assertion in the test to see the failure. That turns passive watching into practice.
-
-### CapCut Checklist
-- Import `slides.pdf` or the PNG sequence at 1920×1080.
-- Align voiceover to the timestamps in the Video Script section.
-- Keep lower-thirds short: pattern name + one-line intent.
-- Add a pinned comment with the GitHub path to this episode folder.
-
-### Common Recording Mistakes
-- Reading UML without showing running output.
-- Skipping the "when NOT to use" section — that is what seniors listen for.
-- Rushing trade-offs. Slow down here; it is interview gold.
-- Forgetting to mention the test class name so learners can `mvn -Dtest=... test`.
-
-
-## Practice Drill (Do This After Watching)
-1. Clone `waqarys/java-design-patterns` and set `JAVA_HOME` to JDK 25.
-2. Run the episode Demo (`mvn -q exec:java -Dexec.mainClass=...` or `java -cp ... Demo`).
-3. Break the implementation on purpose; watch the test fail; restore it.
-4. Write one alternative design in a scratch branch and compare readability.
-5. Explain the pattern out loud in sixty seconds without looking at notes — that is your introspective for interviews.
-
-## Glossary
-- **Force:** the design pressure (extensibility, coupling, allocation, testability) that makes a pattern worth considering.
-- **Role:** a participant name from the pattern (Context, Strategy, Client, Creator, Product).
-- **Smell:** a code signal that a force is unresolved (telescoping constructors, instanceof forests, god classes).
-- **Modernization:** the Java 25 / Zazr encoding that preserves the force-resolution with less ceremony.
-
-
-## Problem Deep Dive
-The concrete problem for this episode is: **Validate user id pipeline without exceptions**.
-
-Walk the naive path slowly on camera. Ask viewers what breaks first when requirements change —
-a new file to load, a new payment currency, a new saga step, a new illegal state transition.
-That question is the force. The pattern is just the name we give the force once we have felt it.
-
-Then open the solution types and show the boundary: what the rest of the app is allowed to
-depend on, and what stays hidden. Highlight how the runnable main prints a meaningful trace —
-happy path and at least one failure path — so CapCut can cut between IDE and terminal without
-inventing numbers.
-
-Finally, spend a full minute on trade-offs. Seniors stay for the "when not". Juniors need the
-happy path. Your job on Build with Waqar is both.
-
-
-## Studio Notes for Build with Waqar
-When you record this episode, keep the energy practical. Start with the product pain, not the pattern name. Viewers stay when they feel the bug before they learn the label. In CapCut, overlay the slide number in the corner and cut idle IDE scrolling. If a code block is long, zoom CapCut to the highlighted lines rather than shrinking the font on the slide. Re-run the Demo live once if your machine allows — viewers trust a terminal more than a screenshot. Finally, end with a single actionable challenge: ask them to open the repo, run the Demo, and mutate one assertion in the test to see the failure. That turns passive watching into practice.
-
-### CapCut Checklist
-- Import `slides.pdf` or the PNG sequence at 1920×1080.
-- Align voiceover to the timestamps in the Video Script section.
-- Keep lower-thirds short: pattern name + one-line intent.
-- Add a pinned comment with the GitHub path to this episode folder.
-
-### Common Recording Mistakes
-- Reading UML without showing running output.
-- Skipping the "when NOT to use" section — that is what seniors listen for.
-- Rushing trade-offs. Slow down here; it is interview gold.
-- Forgetting to mention the test class name so learners can `mvn -Dtest=... test`.
