@@ -1,4 +1,6 @@
-=== Abstract Factory problem: consistent UI theme ===
-naive: new LightButton() + new DarkCheckbox() // mismatch
-light=light-button+light-checkbox
-dark=dark-button+dark-checkbox
+=== Abstract Factory: Light/Dark UI family ===
+--- naive (mixed family bug) ---
+light-button+dark-checkbox
+--- abstract factory ---
+light-button+light-checkbox
+dark-button+dark-checkbox

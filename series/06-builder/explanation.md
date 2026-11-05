@@ -1,6 +1,6 @@
 # Builder
 
-**Season:** 1 · Creational · **Category:** GoF · **Level:** Beginner · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar
+**Season:** 1 · Creational · **Category:** GoF · **Level:** Beginner · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar
 
 ## Problem
 **Build immutable HTTP requests with many optionals**
@@ -24,23 +24,15 @@ failure, or couple call sites to a third-party shape. That feels fast on day one
 on day thirty.
 
 ```java
-package com.buildwithwaqar.patterns.gof.creational.builder;
+package com.buildwithwaqar.patterns.gof.creational.builder.problem;
 
-import com.buildwithwaqar.patterns.gof.creational.builder.HttpRequest;
+import java.util.*;
 
-/** Problem: construct API requests with many optional headers without telescoping ctors. */
-public final class UseCaseDemo {
-    public static void main(String[] args) {
-        System.out.println("=== Builder problem: HTTP request with optionals ===");
-        var req = HttpRequest.builder("https://api.example/v1/videos")
-                .method("POST")
-                .header("Authorization", "Bearer t")
-                .body("{\"title\":\"Adapter\"}")
-                .timeoutMs(3000)
-                .build();
-        System.out.println("method=" + req.method() + " auth=" + req.headers().get("Authorization")
-                + " timeout=" + req.timeoutMs());
-    }
+public final class NaiveHttp {
+  public static String build(String url, String method, String body, boolean auth) {
+    if (url == null || url.isBlank()) throw new IllegalArgumentException("url");
+    return method + " " + url + " body=" + body + " auth=" + auth;
+  }
 }
 
 ```
@@ -66,95 +58,44 @@ or distributed details behind it.
 
 ### Stage 2 — Encode the solution
 ```java
-package com.buildwithwaqar.patterns.gof.creational.builder;
+package com.buildwithwaqar.patterns.gof.creational.builder.problem;
 
-import java.util.LinkedHashMap;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 
-/** Immutable HTTP request built with a fluent classic builder. */
-public final class HttpRequest {
-    private final String method;
-    private final String url;
-    private final Map<String, String> headers;
-    private final String body;
-    private final int timeoutMs;
-
-    private HttpRequest(Builder b) {
-        this.method = b.method;
-        this.url = b.url;
-        this.headers = Map.copyOf(b.headers);
-        this.body = b.body;
-        this.timeoutMs = b.timeoutMs;
+final class HttpRequest {
+  private final String url, method, body; private final boolean auth;
+  private HttpRequest(Builder b){ url=b.url; method=b.method; body=b.body; auth=b.auth; }
+  public String summarize(){ return method+" "+url+" body="+body+" auth="+auth; }
+  public static final class Builder {
+    private String url, method="GET", body=""; private boolean auth;
+    public Builder url(String u){ this.url=u; return this; }
+    public Builder method(String m){ this.method=m; return this; }
+    public Builder body(String b){ this.body=b; return this; }
+    public Builder auth(boolean a){ this.auth=a; return this; }
+    public HttpRequest build(){
+      if (url==null || url.isBlank()) throw new IllegalArgumentException("url required");
+      return new HttpRequest(this);
     }
-
-    public String method() { return method; }
-    public String url() { return url; }
-    public Map<String, String> headers() { return headers; }
-    public String body() { return body; }
-    public int timeoutMs() { return timeoutMs; }
-
-    public static Builder builder(String url) { return new Builder(url); }
-
-    /** Modern: records + withers-style nested builder still works well. */
-    public static final class Builder {
-        private String method = "GET";
-        private final String url;
-        private final Map<String, String> headers = new LinkedHashMap<>();
-        private String body = "";
-        private int timeoutMs = 5_000;
-
-        private Builder(String url) {
-            this.url = Objects.requireNonNull(url);
-        }
-
-        public Builder method(String method) { this.method = method; return this; }
-        public Builder header(String k, String v) { headers.put(k, v); return this; }
-        public Builder body(String body) { this.body = body; return this; }
-        public Builder timeoutMs(int timeoutMs) { this.timeoutMs = timeoutMs; return this; }
-
-        public HttpRequest build() {
-            if (timeoutMs <= 0) throw new IllegalArgumentException("timeoutMs must be > 0");
-            return new HttpRequest(this);
-        }
-    }
-}
-
-/** Java 25-friendly: compact record with smart constructor + defaults via static factory. */
-record ApiCall(String method, String url, String body, int timeoutMs) {
-    ApiCall {
-        Objects.requireNonNull(method);
-        Objects.requireNonNull(url);
-        if (timeoutMs <= 0) throw new IllegalArgumentException("timeout");
-        body = body == null ? "" : body;
-    }
-
-    static ApiCall get(String url) { return new ApiCall("GET", url, "", 5_000); }
-    ApiCall withBody(String body) { return new ApiCall(method, url, body, timeoutMs); }
-    ApiCall withTimeout(int ms) { return new ApiCall(method, url, body, ms); }
+  }
 }
 
 ```
 
 ### Stage 3 — Runnable main
 ```java
-package com.buildwithwaqar.patterns.gof.creational.builder;
+package com.buildwithwaqar.patterns.gof.creational.builder.problem;
 
-import com.buildwithwaqar.patterns.gof.creational.builder.HttpRequest;
+import java.util.*;
 
-/** Problem: construct API requests with many optional headers without telescoping ctors. */
-public final class UseCaseDemo {
-    public static void main(String[] args) {
-        System.out.println("=== Builder problem: HTTP request with optionals ===");
-        var req = HttpRequest.builder("https://api.example/v1/videos")
-                .method("POST")
-                .header("Authorization", "Bearer t")
-                .body("{\"title\":\"Adapter\"}")
-                .timeoutMs(3000)
-                .build();
-        System.out.println("method=" + req.method() + " auth=" + req.headers().get("Authorization")
-                + " timeout=" + req.timeoutMs());
-    }
+public final class ProblemDemo {
+  public static void main(String[] args) {
+    System.out.println("=== Builder: immutable HTTP request ===");
+    System.out.println("--- naive ---");
+System.out.println(NaiveHttp.build("/x","POST","{}",true));
+System.out.println("--- builder ---");
+System.out.println(new HttpRequest.Builder().url("/v1/orders").method("POST").body("{}").auth(true).build().summarize());
+try { new HttpRequest.Builder().method("GET").build(); } catch (IllegalArgumentException e) { System.out.println("caught="+e.getMessage()); }
+  }
 }
 
 ```
@@ -163,8 +104,12 @@ public final class UseCaseDemo {
 Narrate each line. Do not invent numbers on camera.
 
 ```text
-=== Builder problem: HTTP request with optionals ===
-method=POST auth=Bearer t timeout=3000
+=== Builder: immutable HTTP request ===
+--- naive ---
+POST /x body={} auth=true
+--- builder ---
+POST /v1/orders body={} auth=true
+caught=url required
 ```
 
 Trace: match each printed line to a stage above. Fork the repo, set `JAVA_HOME` to JDK 25,
@@ -246,49 +191,3 @@ Java 25 / Zazr take, then slow down for when NOT to use Builder.
 **[10:30]** *(interview + recap)*
 Two interview questions, three takeaways, link the GitHub episode folder. I am Waqar —
 see you in the next one.
-
-
-## Studio Notes for Build with Waqar
-When you record this episode, keep the energy practical. Start with the product pain, not the pattern name. Viewers stay when they feel the bug before they learn the label. In CapCut, overlay the slide number in the corner and cut idle IDE scrolling. If a code block is long, zoom CapCut to the highlighted lines rather than shrinking the font on the slide. Re-run the Demo live once if your machine allows — viewers trust a terminal more than a screenshot. Finally, end with a single actionable challenge: ask them to open the repo, run the Demo, and mutate one assertion in the test to see the failure. That turns passive watching into practice.
-
-### CapCut Checklist
-- Import `slides.pdf` or the PNG sequence at 1920×1080.
-- Align voiceover to the timestamps in the Video Script section.
-- Keep lower-thirds short: pattern name + one-line intent.
-- Add a pinned comment with the GitHub path to this episode folder.
-
-### Common Recording Mistakes
-- Reading UML without showing running output.
-- Skipping the "when NOT to use" section — that is what seniors listen for.
-- Rushing trade-offs. Slow down here; it is interview gold.
-- Forgetting to mention the test class name so learners can `mvn -Dtest=... test`.
-
-
-## Practice Drill (Do This After Watching)
-1. Clone `waqarys/java-design-patterns` and set `JAVA_HOME` to JDK 25.
-2. Run the episode Demo (`mvn -q exec:java -Dexec.mainClass=...` or `java -cp ... Demo`).
-3. Break the implementation on purpose; watch the test fail; restore it.
-4. Write one alternative design in a scratch branch and compare readability.
-5. Explain the pattern out loud in sixty seconds without looking at notes — that is your introspective for interviews.
-
-## Glossary
-- **Force:** the design pressure (extensibility, coupling, allocation, testability) that makes a pattern worth considering.
-- **Role:** a participant name from the pattern (Context, Strategy, Client, Creator, Product).
-- **Smell:** a code signal that a force is unresolved (telescoping constructors, instanceof forests, god classes).
-- **Modernization:** the Java 25 / Zazr encoding that preserves the force-resolution with less ceremony.
-
-
-## Problem Deep Dive
-The concrete problem for this episode is: **Build immutable HTTP requests with many optionals**.
-
-Walk the naive path slowly on camera. Ask viewers what breaks first when requirements change —
-a new file to load, a new payment currency, a new saga step, a new illegal state transition.
-That question is the force. The pattern is just the name we give the force once we have felt it.
-
-Then open the solution types and show the boundary: what the rest of the app is allowed to
-depend on, and what stays hidden. Highlight how the runnable main prints a meaningful trace —
-happy path and at least one failure path — so CapCut can cut between IDE and terminal without
-inventing numbers.
-
-Finally, spend a full minute on trade-offs. Seniors stay for the "when not". Juniors need the
-happy path. Your job on Build with Waqar is both.

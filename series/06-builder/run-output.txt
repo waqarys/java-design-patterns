@@ -1,2 +1,6 @@
-=== Builder problem: HTTP request with optionals ===
-method=POST auth=Bearer t timeout=3000
+=== Builder: immutable HTTP request ===
+--- naive ---
+POST /x body={} auth=true
+--- builder ---
+POST /v1/orders body={} auth=true
+caught=url required

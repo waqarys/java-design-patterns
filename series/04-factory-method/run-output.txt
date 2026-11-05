@@ -1,5 +1,8 @@
-=== Factory Method problem: channel-agnostic notify ===
-naive would: new EmailNotification().deliver(...) everywhere
-EMAIL -> email -> user@x: Welcome to Build with Waqar
-SMS -> sms -> user@x: Welcome to Build with Waqar
-PUSH -> push -> user@x: Welcome to Build with Waqar
+=== Factory Method: Email/SMS/Push notifiers ===
+--- naive ---
+email:a@b.c:hi
+caught=unknown channel fax
+--- factory method ---
+email:a@b.c:hi
+sms:+1:hi
+push:device:hi

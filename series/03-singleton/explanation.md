@@ -1,6 +1,6 @@
 # Singleton
 
-**Season:** 1 · Creational · **Category:** GoF · **Level:** Beginner · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar
+**Season:** 1 · Creational · **Category:** GoF · **Level:** Beginner · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar
 
 ## Problem
 **One MetricsRegistry across request threads**
@@ -24,26 +24,13 @@ failure, or couple call sites to a third-party shape. That feels fast on day one
 on day thirty.
 
 ```java
-package com.buildwithwaqar.patterns.gof.creational.singleton;
+package com.buildwithwaqar.patterns.gof.creational.singleton.problem;
 
-import com.buildwithwaqar.patterns.gof.creational.singleton.problem.NaiveMetrics;
-
-/** Problem: one MetricsRegistry across request threads (vs split-brain counters). */
-public final class UseCaseDemo {
-    public static void main(String[] args) {
-        System.out.println("=== Singleton problem: one metrics registry ===");
-        var a = new NaiveMetrics();
-        var b = new NaiveMetrics();
-        a.hit(); a.hit(); b.hit();
-        System.out.println("naiveA=" + a.hits() + " naiveB=" + b.hits() + " (split brain)");
-
-        MetricsRegistry.getInstance().reset();
-        MetricsRegistry.getInstance().hit();
-        MetricsRegistry.getInstance().hit();
-        MetricsRegistry.getInstance().hit();
-        System.out.println("singletonHits=" + MetricsRegistry.getInstance().hits());
-        System.out.println("same=" + (MetricsRegistry.getInstance() == MetricsRegistry.getInstance()));
-    }
+/** Naive: each service constructs its own counter — totals disagree. */
+public final class NaiveMetrics {
+    private long hits;
+    public void hit() { hits++; }
+    public long hits() { return hits; }
 }
 
 ```
@@ -82,47 +69,23 @@ public enum AppConfig {
     public String greeting() { return "hello from " + env; }
 }
 
-
-package com.buildwithwaqar.patterns.gof.creational.singleton;
-
-import java.time.Instant;
-
-/** Prefer injecting a Clock over a time singleton. */
-public interface Clock {
-    Instant now();
-
-    record SystemClock() implements Clock {
-        @Override public Instant now() { return Instant.now(); }
-    }
-
-    record FixedClock(Instant instant) implements Clock {
-        @Override public Instant now() { return instant; }
-    }
-}
-
 ```
 
 ### Stage 3 — Runnable main
 ```java
-package com.buildwithwaqar.patterns.gof.creational.singleton;
+package com.buildwithwaqar.patterns.gof.creational.singleton.problem;
 
-import com.buildwithwaqar.patterns.gof.creational.singleton.problem.NaiveMetrics;
-
-/** Problem: one MetricsRegistry across request threads (vs split-brain counters). */
-public final class UseCaseDemo {
+public final class ProblemDemo {
     public static void main(String[] args) {
-        System.out.println("=== Singleton problem: one metrics registry ===");
-        var a = new NaiveMetrics();
-        var b = new NaiveMetrics();
+        System.out.println("=== Singleton: one MetricsRegistry ===");
+        var a = new NaiveMetrics(); var b = new NaiveMetrics();
         a.hit(); a.hit(); b.hit();
-        System.out.println("naiveA=" + a.hits() + " naiveB=" + b.hits() + " (split brain)");
+        System.out.println("naiveA=" + a.hits() + " naiveB=" + b.hits());
+        var reg = com.buildwithwaqar.patterns.gof.creational.singleton.MetricsRegistry.getInstance();
+        reg.reset(); reg.hit(); reg.hit(); reg.hit();
+        System.out.println("singletonHits=" + reg.hits());
+        System.out.println("same=" + (reg == com.buildwithwaqar.patterns.gof.creational.singleton.MetricsRegistry.getInstance()));
 
-        MetricsRegistry.getInstance().reset();
-        MetricsRegistry.getInstance().hit();
-        MetricsRegistry.getInstance().hit();
-        MetricsRegistry.getInstance().hit();
-        System.out.println("singletonHits=" + MetricsRegistry.getInstance().hits());
-        System.out.println("same=" + (MetricsRegistry.getInstance() == MetricsRegistry.getInstance()));
     }
 }
 
@@ -132,8 +95,8 @@ public final class UseCaseDemo {
 Narrate each line. Do not invent numbers on camera.
 
 ```text
-=== Singleton problem: one metrics registry ===
-naiveA=2 naiveB=1 (split brain)
+=== Singleton: one MetricsRegistry ===
+naiveA=2 naiveB=1
 singletonHits=3
 same=true
 ```
@@ -217,65 +180,3 @@ Java 25 / Zazr take, then slow down for when NOT to use Singleton.
 **[10:30]** *(interview + recap)*
 Two interview questions, three takeaways, link the GitHub episode folder. I am Waqar —
 see you in the next one.
-
-
-## Studio Notes for Build with Waqar
-When you record this episode, keep the energy practical. Start with the product pain, not the pattern name. Viewers stay when they feel the bug before they learn the label. In CapCut, overlay the slide number in the corner and cut idle IDE scrolling. If a code block is long, zoom CapCut to the highlighted lines rather than shrinking the font on the slide. Re-run the Demo live once if your machine allows — viewers trust a terminal more than a screenshot. Finally, end with a single actionable challenge: ask them to open the repo, run the Demo, and mutate one assertion in the test to see the failure. That turns passive watching into practice.
-
-### CapCut Checklist
-- Import `slides.pdf` or the PNG sequence at 1920×1080.
-- Align voiceover to the timestamps in the Video Script section.
-- Keep lower-thirds short: pattern name + one-line intent.
-- Add a pinned comment with the GitHub path to this episode folder.
-
-### Common Recording Mistakes
-- Reading UML without showing running output.
-- Skipping the "when NOT to use" section — that is what seniors listen for.
-- Rushing trade-offs. Slow down here; it is interview gold.
-- Forgetting to mention the test class name so learners can `mvn -Dtest=... test`.
-
-
-## Practice Drill (Do This After Watching)
-1. Clone `waqarys/java-design-patterns` and set `JAVA_HOME` to JDK 25.
-2. Run the episode Demo (`mvn -q exec:java -Dexec.mainClass=...` or `java -cp ... Demo`).
-3. Break the implementation on purpose; watch the test fail; restore it.
-4. Write one alternative design in a scratch branch and compare readability.
-5. Explain the pattern out loud in sixty seconds without looking at notes — that is your introspective for interviews.
-
-## Glossary
-- **Force:** the design pressure (extensibility, coupling, allocation, testability) that makes a pattern worth considering.
-- **Role:** a participant name from the pattern (Context, Strategy, Client, Creator, Product).
-- **Smell:** a code signal that a force is unresolved (telescoping constructors, instanceof forests, god classes).
-- **Modernization:** the Java 25 / Zazr encoding that preserves the force-resolution with less ceremony.
-
-
-## Problem Deep Dive
-The concrete problem for this episode is: **One MetricsRegistry across request threads**.
-
-Walk the naive path slowly on camera. Ask viewers what breaks first when requirements change —
-a new file to load, a new payment currency, a new saga step, a new illegal state transition.
-That question is the force. The pattern is just the name we give the force once we have felt it.
-
-Then open the solution types and show the boundary: what the rest of the app is allowed to
-depend on, and what stays hidden. Highlight how the runnable main prints a meaningful trace —
-happy path and at least one failure path — so CapCut can cut between IDE and terminal without
-inventing numbers.
-
-Finally, spend a full minute on trade-offs. Seniors stay for the "when not". Juniors need the
-happy path. Your job on Build with Waqar is both.
-
-
-## Studio Notes for Build with Waqar
-When you record this episode, keep the energy practical. Start with the product pain, not the pattern name. Viewers stay when they feel the bug before they learn the label. In CapCut, overlay the slide number in the corner and cut idle IDE scrolling. If a code block is long, zoom CapCut to the highlighted lines rather than shrinking the font on the slide. Re-run the Demo live once if your machine allows — viewers trust a terminal more than a screenshot. Finally, end with a single actionable challenge: ask them to open the repo, run the Demo, and mutate one assertion in the test to see the failure. That turns passive watching into practice.
-
-### CapCut Checklist
-- Import `slides.pdf` or the PNG sequence at 1920×1080.
-- Align voiceover to the timestamps in the Video Script section.
-- Keep lower-thirds short: pattern name + one-line intent.
-- Add a pinned comment with the GitHub path to this episode folder.
-
-### Common Recording Mistakes
-- Reading UML without showing running output.
-- Skipping the "when NOT to use" section — that is what seniors listen for.
-- Rushing trade-offs. Slow down here; it is interview gold.
-- Forgetting to mention the test class name so learners can `mvn -Dtest=... test`.

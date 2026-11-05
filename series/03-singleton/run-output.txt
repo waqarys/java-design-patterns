@@ -1,4 +1,4 @@
-=== Singleton problem: one metrics registry ===
-naiveA=2 naiveB=1 (split brain)
+=== Singleton: one MetricsRegistry ===
+naiveA=2 naiveB=1
 singletonHits=3
 same=true

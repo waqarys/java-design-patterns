@@ -1,3 +1,7 @@
-=== Prototype problem: clone meeting template ===
-proto=Weekly Sync[Agenda, Notes]
-clone=Weekly Sync — Platform[Agenda, Notes, Action Items]
+=== Prototype: clone meeting templates ===
+--- naive ---
+Weekly (copy)
+--- prototype ---
+Weekly Sync:[Ada, Bob]
+Team A Sync:[Ada, Bob]
+independent=true

@@ -1,6 +1,6 @@
 # Factory Method
 
-**Season:** 1 · Creational · **Category:** GoF · **Level:** Beginner · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar
+**Season:** 1 · Creational · **Category:** GoF · **Level:** Beginner · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar
 
 ## Problem
 **Create Email/SMS/Push notifiers without client coupling**
@@ -24,19 +24,16 @@ failure, or couple call sites to a third-party shape. That feels fast on day one
 on day thirty.
 
 ```java
-package com.buildwithwaqar.patterns.gof.creational.factorymethod;
+package com.buildwithwaqar.patterns.gof.creational.factorymethod.problem;
 
-import com.buildwithwaqar.patterns.gof.creational.factorymethod.*;
-
-/** Problem: notify users on signup without hard-coding Email/SMS/Push in controllers. */
-public final class UseCaseDemo {
-    public static void main(String[] args) {
-        System.out.println("=== Factory Method problem: channel-agnostic notify ===");
-        System.out.println("naive would: new EmailNotification().deliver(...) everywhere");
-        for (var ch : NotificationChannel.values()) {
-            System.out.println(ch + " -> " + ch.notify("user@x", "Welcome to Build with Waqar"));
-        }
-    }
+/** Naive: client switches on channel strings and news concrete types. */
+public final class NaiveNotify {
+  public static String send(String channel, String to, String body) {
+    if ("email".equals(channel)) return "email:" + to + ":" + body;
+    if ("sms".equals(channel)) return "sms:" + to + ":" + body;
+    if ("push".equals(channel)) return "push:" + to + ":" + body;
+    throw new IllegalArgumentException("unknown channel " + channel);
+  }
 }
 
 ```
@@ -62,66 +59,36 @@ or distributed details behind it.
 
 ### Stage 2 — Encode the solution
 ```java
-package com.buildwithwaqar.patterns.gof.creational.factorymethod;
-
-/** Modern Java 25: sealed enum + switch expression replaces the class hierarchy. */
-public enum NotificationChannel {
-    EMAIL, SMS, PUSH;
-
-    public Notification create() {
-        return switch (this) {
-            case EMAIL -> new EmailNotification();
-            case SMS -> new SmsNotification();
-            case PUSH -> new PushNotification();
-        };
-    }
-
-    public String notify(String to, String body) {
-        return create().deliver(to, body);
-    }
+package com.buildwithwaqar.patterns.gof.creational.factorymethod.problem;
+public record EmailNotifier() implements Notifier {
+  public String send(String to, String body) { return "email:" + to + ":" + body; }
 }
 
 
-package com.buildwithwaqar.patterns.gof.creational.factorymethod;
-
-/** Creator hierarchy — subclasses decide which product to instantiate. */
-public abstract class Notifier {
-    protected abstract Notification create();
-
-    public final String notify(String to, String body) {
-        return create().deliver(to, body);
-    }
-}
-
-final class EmailNotifier extends Notifier {
-    @Override protected Notification create() { return new EmailNotification(); }
-}
-
-final class SmsNotifier extends Notifier {
-    @Override protected Notification create() { return new SmsNotification(); }
-}
-
-final class PushNotifier extends Notifier {
-    @Override protected Notification create() { return new PushNotification(); }
+package com.buildwithwaqar.patterns.gof.creational.factorymethod.problem;
+public record PushNotifier() implements Notifier {
+  public String send(String to, String body) { return "push:" + to + ":" + body; }
 }
 
 ```
 
 ### Stage 3 — Runnable main
 ```java
-package com.buildwithwaqar.patterns.gof.creational.factorymethod;
+package com.buildwithwaqar.patterns.gof.creational.factorymethod.problem;
 
-import com.buildwithwaqar.patterns.gof.creational.factorymethod.*;
-
-/** Problem: notify users on signup without hard-coding Email/SMS/Push in controllers. */
-public final class UseCaseDemo {
-    public static void main(String[] args) {
-        System.out.println("=== Factory Method problem: channel-agnostic notify ===");
-        System.out.println("naive would: new EmailNotification().deliver(...) everywhere");
-        for (var ch : NotificationChannel.values()) {
-            System.out.println(ch + " -> " + ch.notify("user@x", "Welcome to Build with Waqar"));
-        }
-    }
+public final class ProblemDemo {
+  public static void main(String[] args) {
+    System.out.println("=== Factory Method: Email/SMS/Push notifiers ===");
+    System.out.println("--- naive ---");
+    System.out.println(NaiveNotify.send("email", "a@b.c", "hi"));
+    try { NaiveNotify.send("fax", "a", "x"); } catch (IllegalArgumentException e) { System.out.println("caught=" + e.getMessage()); }
+    System.out.println("--- factory method ---");
+    NotifierFactory email = new EmailFactory();
+    NotifierFactory sms = new SmsFactory();
+    System.out.println(email.notifyUser("a@b.c", "hi"));
+    System.out.println(sms.notifyUser("+1", "hi"));
+    System.out.println(new PushFactory().notifyUser("device", "hi"));
+  }
 }
 
 ```
@@ -130,11 +97,14 @@ public final class UseCaseDemo {
 Narrate each line. Do not invent numbers on camera.
 
 ```text
-=== Factory Method problem: channel-agnostic notify ===
-naive would: new EmailNotification().deliver(...) everywhere
-EMAIL -> email -> user@x: Welcome to Build with Waqar
-SMS -> sms -> user@x: Welcome to Build with Waqar
-PUSH -> push -> user@x: Welcome to Build with Waqar
+=== Factory Method: Email/SMS/Push notifiers ===
+--- naive ---
+email:a@b.c:hi
+caught=unknown channel fax
+--- factory method ---
+email:a@b.c:hi
+sms:+1:hi
+push:device:hi
 ```
 
 Trace: match each printed line to a stage above. Fork the repo, set `JAVA_HOME` to JDK 25,
@@ -216,65 +186,3 @@ Java 25 / Zazr take, then slow down for when NOT to use Factory Method.
 **[10:30]** *(interview + recap)*
 Two interview questions, three takeaways, link the GitHub episode folder. I am Waqar —
 see you in the next one.
-
-
-## Studio Notes for Build with Waqar
-When you record this episode, keep the energy practical. Start with the product pain, not the pattern name. Viewers stay when they feel the bug before they learn the label. In CapCut, overlay the slide number in the corner and cut idle IDE scrolling. If a code block is long, zoom CapCut to the highlighted lines rather than shrinking the font on the slide. Re-run the Demo live once if your machine allows — viewers trust a terminal more than a screenshot. Finally, end with a single actionable challenge: ask them to open the repo, run the Demo, and mutate one assertion in the test to see the failure. That turns passive watching into practice.
-
-### CapCut Checklist
-- Import `slides.pdf` or the PNG sequence at 1920×1080.
-- Align voiceover to the timestamps in the Video Script section.
-- Keep lower-thirds short: pattern name + one-line intent.
-- Add a pinned comment with the GitHub path to this episode folder.
-
-### Common Recording Mistakes
-- Reading UML without showing running output.
-- Skipping the "when NOT to use" section — that is what seniors listen for.
-- Rushing trade-offs. Slow down here; it is interview gold.
-- Forgetting to mention the test class name so learners can `mvn -Dtest=... test`.
-
-
-## Practice Drill (Do This After Watching)
-1. Clone `waqarys/java-design-patterns` and set `JAVA_HOME` to JDK 25.
-2. Run the episode Demo (`mvn -q exec:java -Dexec.mainClass=...` or `java -cp ... Demo`).
-3. Break the implementation on purpose; watch the test fail; restore it.
-4. Write one alternative design in a scratch branch and compare readability.
-5. Explain the pattern out loud in sixty seconds without looking at notes — that is your introspective for interviews.
-
-## Glossary
-- **Force:** the design pressure (extensibility, coupling, allocation, testability) that makes a pattern worth considering.
-- **Role:** a participant name from the pattern (Context, Strategy, Client, Creator, Product).
-- **Smell:** a code signal that a force is unresolved (telescoping constructors, instanceof forests, god classes).
-- **Modernization:** the Java 25 / Zazr encoding that preserves the force-resolution with less ceremony.
-
-
-## Problem Deep Dive
-The concrete problem for this episode is: **Create Email/SMS/Push notifiers without client coupling**.
-
-Walk the naive path slowly on camera. Ask viewers what breaks first when requirements change —
-a new file to load, a new payment currency, a new saga step, a new illegal state transition.
-That question is the force. The pattern is just the name we give the force once we have felt it.
-
-Then open the solution types and show the boundary: what the rest of the app is allowed to
-depend on, and what stays hidden. Highlight how the runnable main prints a meaningful trace —
-happy path and at least one failure path — so CapCut can cut between IDE and terminal without
-inventing numbers.
-
-Finally, spend a full minute on trade-offs. Seniors stay for the "when not". Juniors need the
-happy path. Your job on Build with Waqar is both.
-
-
-## Studio Notes for Build with Waqar
-When you record this episode, keep the energy practical. Start with the product pain, not the pattern name. Viewers stay when they feel the bug before they learn the label. In CapCut, overlay the slide number in the corner and cut idle IDE scrolling. If a code block is long, zoom CapCut to the highlighted lines rather than shrinking the font on the slide. Re-run the Demo live once if your machine allows — viewers trust a terminal more than a screenshot. Finally, end with a single actionable challenge: ask them to open the repo, run the Demo, and mutate one assertion in the test to see the failure. That turns passive watching into practice.
-
-### CapCut Checklist
-- Import `slides.pdf` or the PNG sequence at 1920×1080.
-- Align voiceover to the timestamps in the Video Script section.
-- Keep lower-thirds short: pattern name + one-line intent.
-- Add a pinned comment with the GitHub path to this episode folder.
-
-### Common Recording Mistakes
-- Reading UML without showing running output.
-- Skipping the "when NOT to use" section — that is what seniors listen for.
-- Rushing trade-offs. Slow down here; it is interview gold.
-- Forgetting to mention the test class name so learners can `mvn -Dtest=... test`.
