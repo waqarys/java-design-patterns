@@ -1,4 +1,4 @@
-=== Null Object walkthrough ===
-ok:ord-1
-ok:ord-2
-log=placing ord-2
+=== Null Object problem: optional logger ===
+ok:o1
+ok:o2
+log=placing o2

@@ -1,4 +1,3 @@
-=== Outbox walkthrough ===
+=== Outbox problem: reliable publish ===
 unpublished=1
-unpublishedAfter=0
-orders=[o1]
+afterRelay=0 orders=[ord-1]

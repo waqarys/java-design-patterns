@@ -1,5 +1,5 @@
-=== Circuit Breaker walkthrough ===
-fail0 state=CLOSED
-fail1 state=OPEN
+=== Circuit Breaker problem: flaky rates API ===
+fail state=CLOSED
+fail state=OPEN
 shortCircuit=circuit open
-afterTimeout=ok state=CLOSED
+recovered=rate=83.2 state=CLOSED

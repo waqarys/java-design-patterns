@@ -1,5 +1,3 @@
-=== Retry walkthrough ===
-attempt=1
-attempt=2
-attempt=3
-result=published
+=== Retry problem: flaky broker publish ===
+result=PUBLISHED
+attempts=3

@@ -1,3 +1,11 @@
-=== Saga walkthrough ===
-success=[reserved, ok:reserve, charged, ok:charge, shipped, ok:ship]
-compensated=[reserved, ok:reserve, release, aborted]
+=== Saga problem: order booking with rollback ===
+--- naive (payment fails → inventory leak) ---
+naiveBooked=false
+naiveReserved=[N1]
+--- saga happy path ---
+booked=true
+log=[ok:reserve, ok:charge, ok:ship, committed]
+--- saga fails at ship; compensates reverse ---
+booked=false
+log=[ok:reserve, ok:charge, abort:shipping:carrier_down, compensate:refund, compensate:release, rolled_back]
+reserved=[] charged=[] shipped=[]

@@ -1,4 +1,4 @@
-=== Event Sourcing / CQRS walkthrough ===
-writeModelBalance=60
-events=[Deposited[amount=100], Withdrawn[amount=40]]
-readModelBalance=60
+=== Event Sourcing problem: bank ledger ===
+balance=70
+events=[Deposited[amount=100], Withdrawn[amount=30]]
+readModel=70
