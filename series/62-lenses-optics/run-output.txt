@@ -1,3 +1,7 @@
-=== Lens problem: nested immutable update ===
-before=Person[name=Ada, address=Address[city=London, zip=E1]]
-after=Person[name=Ada, address=Address[city=Paris, zip=E1]]
+=== Lenses: nested city update ===
+--- naive ---
+{city:NYC}
+--- lenses ---
+Person[name=Ada, address=Address[city=Old, zip=10001]]
+Person[name=Ada, address=Address[city=NYC, zip=10001]]
+city=NYC

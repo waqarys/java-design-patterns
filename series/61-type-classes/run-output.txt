@@ -1,2 +1,9 @@
-=== Typeclass/Monad problem: Option dictionary ===
-Some(42)
+=== Type Classes: Show / Eq / JsonEncoder ===
+--- naive (incomplete JSON) ---
+{cents:1999}
+{id:o1}
+--- type-class dictionaries ---
+show=Order(o1: 2xSKU1@USD 19.99, 1xSKU2@USD 5.0)
+json={"id":"o1","items":[{"sku":"SKU1","qty":2,"price":{"currency":"USD","cents":1999}},{"sku":"SKU2","qty":1,"price":{"currency":"USD","cents":500}}]}
+eqSelf=true
+eqOther=false

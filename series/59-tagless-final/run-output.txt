@@ -1,2 +1,14 @@
-=== Tagless Final problem: swappable Console ===
-name=Waqar
+=== Tagless Final: user registration algebras ===
+--- naive (hard-wired Map + System.out) ---
+sent welcome to a@b.c
+User[id=u1, email=a@b.c]
+outbox=[welcome->a@b.c]
+--- IO-style interpreter ---
+user=User[id=u2, email=x@y.z]
+emails=[x@y.z|Welcome|Hi u2]
+logs=[register x@y.z, registered u2]
+--- pure test interpreter (shared state) ---
+user=User[id=u3, email=t@est.io]
+emails=[t@est.io|Welcome]
+logs=[register t@est.io, registered u3]
+db=[t@est.io]

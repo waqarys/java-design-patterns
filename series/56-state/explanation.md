@@ -1,6 +1,6 @@
 # State Monad
 
-**Season:** 7 · Advanced FP · **Category:** Functional · **Level:** Advanced · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar
+**Season:** 7 · Advanced FP · **Category:** Functional · **Level:** Advanced · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar
 
 ## Problem
 **Pure RNG / bank balance simulation**
@@ -24,18 +24,13 @@ failure, or couple call sites to a third-party shape. That feels fast on day one
 on day thirty.
 
 ```java
-package com.buildwithwaqar.patterns.functional.state;
+package com.buildwithwaqar.patterns.functional.state.problem;
 
-import com.buildwithwaqar.patterns.functional.state.State;
-/** Problem: simulate a bank balance purely (state threaded, not mutated globally). */
-public final class UseCaseDemo {
-  public static void main(String[] a) {
-    System.out.println("=== State problem: pure bank simulation ===");
-    State<Integer, Integer> deposit20 = State.<Integer>get()
-      .flatMap(bal -> State.<Integer>set(bal + 20).flatMap(x -> State.pure(bal + 20)));
-    var r = deposit20.run(100);
-    System.out.println("returned=" + r.value() + " newBalance=" + r.state());
-  }
+import java.util.*;
+
+public final class NaiveRng {
+  private int seed; NaiveRng(int s){ seed=s; }
+  public int next(){ seed = seed*1103515245+12345; return Math.abs(seed%100); }
 }
 
 ```
@@ -61,52 +56,37 @@ or distributed details behind it.
 
 ### Stage 2 — Encode the solution
 ```java
-package com.buildwithwaqar.patterns.functional.state;
+package com.buildwithwaqar.patterns.functional.state.problem;
 
-import java.util.function.Function;
+import java.util.*;
+import java.util.function.*;
 
-public record State<S, A>(Function<S, Result<S, A>> run) {
-    public record Result<S, A>(S state, A value) {}
-
-    public Result<S, A> run(S s) { return run.apply(s); }
-
-    public <B> State<S, B> map(Function<? super A, ? extends B> f) {
-        return new State<>(s -> {
-            var r = run(s);
-            return new Result<>(r.state(), f.apply(r.value()));
-        });
-    }
-
-    public <B> State<S, B> flatMap(Function<? super A, State<S, B>> f) {
-        return new State<>(s -> {
-            var r = run(s);
-            return f.apply(r.value()).run(r.state());
-        });
-    }
-
-    public static <S, A> State<S, A> pure(A a) { return new State<>(s -> new Result<>(s, a)); }
-    public static <S> State<S, S> get() { return new State<>(s -> new Result<>(s, s)); }
-    public static <S> State<S, Void> set(S s) { return new State<>(ignored -> new Result<>(s, null)); }
-    public static <S> State<S, Void> modify(Function<S, S> f) {
-        return new State<>(s -> new Result<>(f.apply(s), null));
-    }
+record State<S,A>(Function<S, Map.Entry<A,S>> runF){
+  Map.Entry<A,S> run(S s){ return runF.apply(s); }
+  static <S,A> State<S,A> pure(A a){ return new State<>(s -> Map.entry(a,s)); }
+  <B> State<S,B> map(Function<A,B> f){ return flatMap(a -> State.pure(f.apply(a))); }
+  <B> State<S,B> flatMap(Function<A, State<S,B>> f){
+    return new State<>(s -> { var r=runF.apply(s); return f.apply(r.getKey()).runF.apply(r.getValue()); });
+  }
+  static State<Integer,Integer> nextInt(){ return new State<>(s -> { int n=Math.abs((s*1103515245+12345)%100); return Map.entry(n, n==0?1:n); }); }
+  static State<Integer,Integer> deposit(int cents){ return new State<>(bal -> Map.entry(bal+cents, bal+cents)); }
 }
 
 ```
 
 ### Stage 3 — Runnable main
 ```java
-package com.buildwithwaqar.patterns.functional.state;
-
-import com.buildwithwaqar.patterns.functional.state.State;
-/** Problem: simulate a bank balance purely (state threaded, not mutated globally). */
-public final class UseCaseDemo {
-  public static void main(String[] a) {
-    System.out.println("=== State problem: pure bank simulation ===");
-    State<Integer, Integer> deposit20 = State.<Integer>get()
-      .flatMap(bal -> State.<Integer>set(bal + 20).flatMap(x -> State.pure(bal + 20)));
-    var r = deposit20.run(100);
-    System.out.println("returned=" + r.value() + " newBalance=" + r.state());
+package com.buildwithwaqar.patterns.functional.state.problem;
+import java.util.*; import java.util.function.*;
+public final class ProblemDemo {
+  public static void main(String[] args) {
+    System.out.println("=== State: pure RNG / bank balance ===");
+    System.out.println("--- naive ---"); var n=new NaiveRng(1); System.out.println(n.next()+" "+n.next());
+System.out.println("--- state RNG ---");
+var rng=State.nextInt().flatMap(a -> State.nextInt().map(b -> List.of(a,b)));
+System.out.println(rng.run(1));
+System.out.println("--- state bank ---");
+System.out.println(State.deposit(50).flatMap(b -> State.deposit(25)).run(0));
   }
 }
 
@@ -116,8 +96,13 @@ public final class UseCaseDemo {
 Narrate each line. Do not invent numbers on camera.
 
 ```text
-=== State problem: pure bank simulation ===
-returned=120 newBalance=120
+=== State: pure RNG / bank balance ===
+--- naive ---
+90 73
+--- state RNG ---
+[90, 87]=87
+--- state bank ---
+75=75
 ```
 
 Trace: match each printed line to a stage above. Fork the repo, set `JAVA_HOME` to JDK 25,
@@ -199,65 +184,3 @@ Java 25 / Zazr take, then slow down for when NOT to use State.
 **[10:30]** *(interview + recap)*
 Two interview questions, three takeaways, link the GitHub episode folder. I am Waqar —
 see you in the next one.
-
-
-## Studio Notes for Build with Waqar
-When you record this episode, keep the energy practical. Start with the product pain, not the pattern name. Viewers stay when they feel the bug before they learn the label. In CapCut, overlay the slide number in the corner and cut idle IDE scrolling. If a code block is long, zoom CapCut to the highlighted lines rather than shrinking the font on the slide. Re-run the Demo live once if your machine allows — viewers trust a terminal more than a screenshot. Finally, end with a single actionable challenge: ask them to open the repo, run the Demo, and mutate one assertion in the test to see the failure. That turns passive watching into practice.
-
-### CapCut Checklist
-- Import `slides.pdf` or the PNG sequence at 1920×1080.
-- Align voiceover to the timestamps in the Video Script section.
-- Keep lower-thirds short: pattern name + one-line intent.
-- Add a pinned comment with the GitHub path to this episode folder.
-
-### Common Recording Mistakes
-- Reading UML without showing running output.
-- Skipping the "when NOT to use" section — that is what seniors listen for.
-- Rushing trade-offs. Slow down here; it is interview gold.
-- Forgetting to mention the test class name so learners can `mvn -Dtest=... test`.
-
-
-## Practice Drill (Do This After Watching)
-1. Clone `waqarys/java-design-patterns` and set `JAVA_HOME` to JDK 25.
-2. Run the episode Demo (`mvn -q exec:java -Dexec.mainClass=...` or `java -cp ... Demo`).
-3. Break the implementation on purpose; watch the test fail; restore it.
-4. Write one alternative design in a scratch branch and compare readability.
-5. Explain the pattern out loud in sixty seconds without looking at notes — that is your introspective for interviews.
-
-## Glossary
-- **Force:** the design pressure (extensibility, coupling, allocation, testability) that makes a pattern worth considering.
-- **Role:** a participant name from the pattern (Context, Strategy, Client, Creator, Product).
-- **Smell:** a code signal that a force is unresolved (telescoping constructors, instanceof forests, god classes).
-- **Modernization:** the Java 25 / Zazr encoding that preserves the force-resolution with less ceremony.
-
-
-## Problem Deep Dive
-The concrete problem for this episode is: **Pure RNG / bank balance simulation**.
-
-Walk the naive path slowly on camera. Ask viewers what breaks first when requirements change —
-a new file to load, a new payment currency, a new saga step, a new illegal state transition.
-That question is the force. The pattern is just the name we give the force once we have felt it.
-
-Then open the solution types and show the boundary: what the rest of the app is allowed to
-depend on, and what stays hidden. Highlight how the runnable main prints a meaningful trace —
-happy path and at least one failure path — so CapCut can cut between IDE and terminal without
-inventing numbers.
-
-Finally, spend a full minute on trade-offs. Seniors stay for the "when not". Juniors need the
-happy path. Your job on Build with Waqar is both.
-
-
-## Studio Notes for Build with Waqar
-When you record this episode, keep the energy practical. Start with the product pain, not the pattern name. Viewers stay when they feel the bug before they learn the label. In CapCut, overlay the slide number in the corner and cut idle IDE scrolling. If a code block is long, zoom CapCut to the highlighted lines rather than shrinking the font on the slide. Re-run the Demo live once if your machine allows — viewers trust a terminal more than a screenshot. Finally, end with a single actionable challenge: ask them to open the repo, run the Demo, and mutate one assertion in the test to see the failure. That turns passive watching into practice.
-
-### CapCut Checklist
-- Import `slides.pdf` or the PNG sequence at 1920×1080.
-- Align voiceover to the timestamps in the Video Script section.
-- Keep lower-thirds short: pattern name + one-line intent.
-- Add a pinned comment with the GitHub path to this episode folder.
-
-### Common Recording Mistakes
-- Reading UML without showing running output.
-- Skipping the "when NOT to use" section — that is what seniors listen for.
-- Rushing trade-offs. Slow down here; it is interview gold.
-- Forgetting to mention the test class name so learners can `mvn -Dtest=... test`.

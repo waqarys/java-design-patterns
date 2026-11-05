@@ -1,3 +1,8 @@
-=== VAVR vs Zazr problem ===
-vavr=got 7
-zazr=got 7
+=== VAVR vs Zazr: same Option describe ===
+--- naive ---
+none
+--- compare ---
+zazr-some:x
+vavr-some:x
+zazr-none
+vavr-none

@@ -1,9 +1,9 @@
 # Effect Systems & Interpreters
 
-**Season:** 7 · Advanced FP · **Category:** Functional · **Level:** Advanced · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar
+**Season:** 7 · Advanced FP · **Category:** Functional · **Level:** Advanced · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar
 
 ## Problem
-**Describe IO report, run at edge**
+**Read file → call service → write result; prod vs test interpreters**
 
 This episode is built around that concrete problem — not a shared StreamForge framing.
 You will see a real naive implementation that hurts, a full pattern-based solution, a
@@ -11,11 +11,11 @@ runnable main with meaningful stdout, and JUnit failure-path coverage where the 
 
 ## Hook
 Welcome back to **Build with Waqar**. Today we earn **Effect Interpreters** by solving one problem well:
-*Describe IO report, run at edge*. By the end you will have walked naive pain → pattern refactor → real JDK 25
+*Read file → call service → write result; prod vs test interpreters*. By the end you will have walked naive pain → pattern refactor → real JDK 25
 stdout → trade-offs, with CapCut slides and a spoken script.
 
 ## Intent
-Effect Interpreters exists because this force kept showing up: describe io report, run at edge. Name the force, sketch
+Effect Interpreters exists because this force kept showing up: read file → call service → write result; prod vs test interpreters. Name the force, sketch
 the roles, and — critically — know when you would refuse the pattern.
 
 ## The Pain — Naive Design
@@ -24,20 +24,19 @@ failure, or couple call sites to a third-party shape. That feels fast on day one
 on day thirty.
 
 ```java
-package com.buildwithwaqar.patterns.functional.io;
+package com.buildwithwaqar.patterns.functional.io.problem;
 
-import com.buildwithwaqar.patterns.functional.io.IO;
-import java.util.concurrent.atomic.AtomicInteger;
-/** Problem: describe a side-effecting report pipeline; run only at the edge. */
-public final class UseCaseDemo {
-  public static void main(String[] a) {
-    System.out.println("=== IO / Effect Interpreter problem ===");
-    var hits = new AtomicInteger();
-    IO<String> report = IO.delay(() -> { hits.incrementAndGet(); return "rows"; })
-        .map(s -> s + "=" + 42);
-    System.out.println("described hits=" + hits.get());
-    System.out.println("run=" + report.unsafeRun() + " hits=" + hits.get());
-  }
+import java.util.Map;
+
+/** Naive: effects inlined — cannot swap FS/HTTP for tests. */
+public final class NaivePipeline {
+    public static String run(Map<String, String> fs, String in, String out) {
+        String content = fs.get(in);
+        if (content == null) throw new IllegalStateException("missing");
+        String resp = "OK:" + content; // hard-wired HTTP
+        fs.put(out, resp);
+        return resp;
+    }
 }
 
 ```
@@ -63,50 +62,119 @@ or distributed details behind it.
 
 ### Stage 2 — Encode the solution
 ```java
-package com.buildwithwaqar.patterns.functional.io;
+package com.buildwithwaqar.patterns.functional.io.problem;
 
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.function.Function;
-import java.util.function.Supplier;
 
-/** Tiny IO effect — suspend side effects, interpret at the edge. */
-public final class IO<A> {
-    private final Supplier<A> thunk;
+/**
+ * Effect program: read a file → call a service → write a result.
+ * Same AST runs under ProdInterpreter (in-memory FS+HTTP) and TestInterpreter (scripted).
+ */
+public final class EffectProgram {
+    private EffectProgram() {}
 
-    private IO(Supplier<A> thunk) { this.thunk = thunk; }
+    public sealed interface Eff permits ReadFile, HttpGet, WriteFile, Pure {}
+    public record ReadFile(String path) implements Eff {}
+    public record HttpGet(String url, String body) implements Eff {} // body = request payload from file
+    public record WriteFile(String path, String content) implements Eff {}
+    public record Pure(String value) implements Eff {}
 
-    public static <A> IO<A> delay(Supplier<A> thunk) { return new IO<>(thunk); }
-    public static <A> IO<A> pure(A a) { return new IO<>(() -> a); }
-
-    public <B> IO<B> map(Function<? super A, ? extends B> f) {
-        return new IO<>(() -> f.apply(thunk.get()));
+    public abstract static class Prog<A> {
+        private Prog() {}
+        public abstract <B> Prog<B> flatMap(Function<? super A, Prog<B>> f);
+        public final <B> Prog<B> map(Function<? super A, ? extends B> f) {
+            return flatMap(a -> pure(f.apply(a)));
+        }
+        public static <A> Prog<A> pure(A a) { return new Return<>(a); }
+        public static Prog<String> readFile(String path) { return new Suspend<>(new ReadFile(path)); }
+        public static Prog<String> httpGet(String url, String body) { return new Suspend<>(new HttpGet(url, body)); }
+        public static Prog<Void> writeFile(String path, String content) { return new Suspend<>(new WriteFile(path, content)); }
     }
 
-    public <B> IO<B> flatMap(Function<? super A, IO<B>> f) {
-        return new IO<>(() -> f.apply(thunk.get()).unsafeRun());
+    private static final class Return<A> extends Prog<A> {
+        final A value; Return(A value) { this.value = value; }
+        public <B> Prog<B> flatMap(Function<? super A, Prog<B>> f) { return f.apply(value); }
+    }
+    private static final class Suspend<A> extends Prog<A> {
+        final Eff eff; Suspend(Eff eff) { this.eff = eff; }
+        public <B> Prog<B> flatMap(Function<? super A, Prog<B>> f) { return new Bind<>(this, f); }
+    }
+    private static final class Bind<A, B> extends Prog<B> {
+        final Prog<A> prev; final Function<? super A, Prog<B>> f;
+        Bind(Prog<A> prev, Function<? super A, Prog<B>> f) { this.prev = prev; this.f = f; }
+        public <C> Prog<C> flatMap(Function<? super B, Prog<C>> g) {
+            return new Bind<>(prev, a -> f.apply(a).flatMap(g));
+        }
     }
 
-    /** Unsafe: runs effects. Call only at the program edge. */
-    public A unsafeRun() { return thunk.get(); }
-}
+    public static Prog<String> reportPipeline(String inPath, String url, String outPath) {
+        return Prog.readFile(inPath).flatMap(content ->
+                Prog.httpGet(url, content).flatMap(resp ->
+                        Prog.writeFile(outPath, resp).map(v -> resp)));
+    }
 
+    public interface Interpreter {
+        <A> A run(Prog<A> program);
+    }
+
+    public static final class ProdInterpreter implements Interpreter {
+        private final Map<String, String> fs;
+        private final Function<String, String> http;
+        private final List<String> log = new ArrayList<>();
+        public ProdInterpreter(Map<String, String> fs, Function<String, String> http) {
+            this.fs = fs; this.http = http;
+        }
+        public List<String> log() { return List.copyOf(log); }
+        public Map<String, String> fs() { return Map.copyOf(fs); }
+        @SuppressWarnings({"rawtypes", "unchecked"})
+        public <A> A run(Prog<A> program) {
+            Prog cur = program;
+            while (true) {
+                if (cur instanceof Return<?> r) return (A) r.value;
+                if (cur instanceof Suspend<?> s) {
+                    Object 
 ```
 
 ### Stage 3 — Runnable main
 ```java
-package com.buildwithwaqar.patterns.functional.io;
+package com.buildwithwaqar.patterns.functional.io.problem;
 
-import com.buildwithwaqar.patterns.functional.io.IO;
-import java.util.concurrent.atomic.AtomicInteger;
-/** Problem: describe a side-effecting report pipeline; run only at the edge. */
-public final class UseCaseDemo {
-  public static void main(String[] a) {
-    System.out.println("=== IO / Effect Interpreter problem ===");
-    var hits = new AtomicInteger();
-    IO<String> report = IO.delay(() -> { hits.incrementAndGet(); return "rows"; })
-        .map(s -> s + "=" + 42);
-    System.out.println("described hits=" + hits.get());
-    System.out.println("run=" + report.unsafeRun() + " hits=" + hits.get());
-  }
+import java.util.HashMap;
+import java.util.Map;
+
+public final class ProblemDemo {
+    public static void main(String[] args) {
+        System.out.println("=== Effect Interpreters: read → HTTP → write ===");
+        System.out.println("--- naive ---");
+        var fs = new HashMap<String, String>();
+        fs.put("/in.txt", "order-42");
+        System.out.println(NaivePipeline.run(fs, "/in.txt", "/out.txt"));
+
+        System.out.println("--- prod interpreter ---");
+        var pfs = new HashMap<String, String>();
+        pfs.put("/in.txt", "order-42");
+        var prod = new EffectProgram.ProdInterpreter(pfs, body -> "SHIPPED:" + body);
+        System.out.println(prod.run(EffectProgram.reportPipeline("/in.txt", "https://ship", "/out.txt")));
+        System.out.println("log=" + prod.log());
+        System.out.println("out=" + prod.fs().get("/out.txt"));
+
+        System.out.println("--- test interpreter ---");
+        var test = new EffectProgram.TestInterpreter(Map.of("/in.txt", "order-7"), "OK", false);
+        System.out.println(test.run(EffectProgram.reportPipeline("/in.txt", "https://ship", "/out.txt")));
+        System.out.println("writes=" + test.writes());
+
+        System.out.println("--- test failure: http down ---");
+        try {
+            new EffectProgram.TestInterpreter(Map.of("/in.txt", "x"), "OK", true)
+                    .run(EffectProgram.reportPipeline("/in.txt", "https://ship", "/out.txt"));
+        } catch (IllegalStateException e) {
+            System.out.println("caught=" + e.getMessage());
+        }
+    }
 }
 
 ```
@@ -115,9 +183,18 @@ public final class UseCaseDemo {
 Narrate each line. Do not invent numbers on camera.
 
 ```text
-=== IO / Effect Interpreter problem ===
-described hits=0
-run=rows=42 hits=1
+=== Effect Interpreters: read → HTTP → write ===
+--- naive ---
+OK:order-42
+--- prod interpreter ---
+SHIPPED:order-42
+log=[read:/in.txt, http:https://ship, write:/out.txt]
+out=SHIPPED:order-42
+--- test interpreter ---
+OK
+writes={/out.txt=OK}
+--- test failure: http down ---
+caught=http-down
 ```
 
 Trace: match each printed line to a stage above. Fork the repo, set `JAVA_HOME` to JDK 25,
@@ -149,7 +226,7 @@ State vs Strategy, Free vs Tagless). Say the distinguishing sentence out loud.
 
 ## Interview Q&A
 **Q1. What concrete problem does Effect Interpreters solve here?**
-A: Describe IO report, run at edge.
+A: Read file → call service → write result; prod vs test interpreters.
 
 **Q2. What does the naive design get wrong?**
 A: Point at the naive code smells from this episode.
@@ -165,7 +242,7 @@ A: Give a smaller counterexample where a function, Option, or facade is enough.
 A: Records, sealed types, virtual threads, Zazr control types — pick what applies.
 
 ## Key Takeaways
-- Lead with the problem: Describe IO report, run at edge.
+- Lead with the problem: Read file → call service → write result; prod vs test interpreters.
 - Show naive pain before naming Effect Interpreters.
 - Run the Demo; trust JDK 25 stdout.
 - Teach when NOT to use it.
@@ -175,7 +252,7 @@ Record for **Build with Waqar**. OBS for capture, CapCut for assembly. Import `s
 
 **[0:00]** *(slide 01 title)*
 Hey everyone, welcome back to Build with Waqar. Today we solve a real problem with Effect Interpreters:
-Describe IO report, run at edge.
+Read file → call service → write result; prod vs test interpreters.
 
 **[0:40]** *(slide 02–03 problem)*
 I am not starting with a definition. Here is the product pain. Keep these names — they
@@ -199,65 +276,3 @@ Java 25 / Zazr take, then slow down for when NOT to use Effect Interpreters.
 **[10:30]** *(interview + recap)*
 Two interview questions, three takeaways, link the GitHub episode folder. I am Waqar —
 see you in the next one.
-
-
-## Studio Notes for Build with Waqar
-When you record this episode, keep the energy practical. Start with the product pain, not the pattern name. Viewers stay when they feel the bug before they learn the label. In CapCut, overlay the slide number in the corner and cut idle IDE scrolling. If a code block is long, zoom CapCut to the highlighted lines rather than shrinking the font on the slide. Re-run the Demo live once if your machine allows — viewers trust a terminal more than a screenshot. Finally, end with a single actionable challenge: ask them to open the repo, run the Demo, and mutate one assertion in the test to see the failure. That turns passive watching into practice.
-
-### CapCut Checklist
-- Import `slides.pdf` or the PNG sequence at 1920×1080.
-- Align voiceover to the timestamps in the Video Script section.
-- Keep lower-thirds short: pattern name + one-line intent.
-- Add a pinned comment with the GitHub path to this episode folder.
-
-### Common Recording Mistakes
-- Reading UML without showing running output.
-- Skipping the "when NOT to use" section — that is what seniors listen for.
-- Rushing trade-offs. Slow down here; it is interview gold.
-- Forgetting to mention the test class name so learners can `mvn -Dtest=... test`.
-
-
-## Practice Drill (Do This After Watching)
-1. Clone `waqarys/java-design-patterns` and set `JAVA_HOME` to JDK 25.
-2. Run the episode Demo (`mvn -q exec:java -Dexec.mainClass=...` or `java -cp ... Demo`).
-3. Break the implementation on purpose; watch the test fail; restore it.
-4. Write one alternative design in a scratch branch and compare readability.
-5. Explain the pattern out loud in sixty seconds without looking at notes — that is your introspective for interviews.
-
-## Glossary
-- **Force:** the design pressure (extensibility, coupling, allocation, testability) that makes a pattern worth considering.
-- **Role:** a participant name from the pattern (Context, Strategy, Client, Creator, Product).
-- **Smell:** a code signal that a force is unresolved (telescoping constructors, instanceof forests, god classes).
-- **Modernization:** the Java 25 / Zazr encoding that preserves the force-resolution with less ceremony.
-
-
-## Problem Deep Dive
-The concrete problem for this episode is: **Describe IO report, run at edge**.
-
-Walk the naive path slowly on camera. Ask viewers what breaks first when requirements change —
-a new file to load, a new payment currency, a new saga step, a new illegal state transition.
-That question is the force. The pattern is just the name we give the force once we have felt it.
-
-Then open the solution types and show the boundary: what the rest of the app is allowed to
-depend on, and what stays hidden. Highlight how the runnable main prints a meaningful trace —
-happy path and at least one failure path — so CapCut can cut between IDE and terminal without
-inventing numbers.
-
-Finally, spend a full minute on trade-offs. Seniors stay for the "when not". Juniors need the
-happy path. Your job on Build with Waqar is both.
-
-
-## Studio Notes for Build with Waqar
-When you record this episode, keep the energy practical. Start with the product pain, not the pattern name. Viewers stay when they feel the bug before they learn the label. In CapCut, overlay the slide number in the corner and cut idle IDE scrolling. If a code block is long, zoom CapCut to the highlighted lines rather than shrinking the font on the slide. Re-run the Demo live once if your machine allows — viewers trust a terminal more than a screenshot. Finally, end with a single actionable challenge: ask them to open the repo, run the Demo, and mutate one assertion in the test to see the failure. That turns passive watching into practice.
-
-### CapCut Checklist
-- Import `slides.pdf` or the PNG sequence at 1920×1080.
-- Align voiceover to the timestamps in the Video Script section.
-- Keep lower-thirds short: pattern name + one-line intent.
-- Add a pinned comment with the GitHub path to this episode folder.
-
-### Common Recording Mistakes
-- Reading UML without showing running output.
-- Skipping the "when NOT to use" section — that is what seniors listen for.
-- Rushing trade-offs. Slow down here; it is interview gold.
-- Forgetting to mention the test class name so learners can `mvn -Dtest=... test`.

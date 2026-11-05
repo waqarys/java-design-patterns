@@ -1,2 +1,6 @@
-=== Writer problem: audited total ===
-value=15 log=add10;add5;
+=== Writer: totals with audit log ===
+--- naive ---
+30
+--- writer ---
+value=60
+log=[line=10, line=20, line=30]

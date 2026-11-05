@@ -1,6 +1,6 @@
 # Kleisli Composition
 
-**Season:** 7 · Advanced FP · **Category:** Functional · **Level:** Advanced · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar
+**Season:** 7 · Advanced FP · **Category:** Functional · **Level:** Advanced · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar
 
 ## Problem
 **Compose parseInt → enrichUser → authorize**
@@ -24,24 +24,12 @@ failure, or couple call sites to a third-party shape. That feels fast on day one
 on day thirty.
 
 ```java
-package com.buildwithwaqar.patterns.functional.kleisli;
+package com.buildwithwaqar.patterns.functional.kleisli.problem;
 
-import com.buildwithwaqar.patterns.functional.kleisli.Kleisli;
-import com.buildwithwaqar.patterns.functional.typeclass.OptionKind;
-import dev.zazr.control.Option;
-/** Problem: compose parseInt → *2 fallible pipeline. */
-public final class UseCaseDemo {
-  public static void main(String[] a) {
-    System.out.println("=== Kleisli problem: fallible pipeline ===");
-    Kleisli<OptionKind.Witness, String, Integer> parse = Kleisli.of(s -> {
-      try { return OptionKind.lift(Option.some(Integer.parseInt(s))); }
-      catch (Exception e) { return OptionKind.lift(Option.none()); }
-    });
-    Kleisli<OptionKind.Witness, Integer, Integer> twice = Kleisli.of(n -> OptionKind.lift(Option.some(n * 2)));
-    var p = parse.andThen(OptionKind.MONAD, twice);
-    System.out.println("ok=" + OptionKind.lower(p.apply("21")));
-    System.out.println("bad=" + OptionKind.lower(p.apply("zz")));
-  }
+import java.util.*;
+
+public final class NaiveAuth {
+  public static String auth(String raw){ int id=Integer.parseInt(raw); return id>0? "allow:"+id: "deny"; }
 }
 
 ```
@@ -67,47 +55,39 @@ or distributed details behind it.
 
 ### Stage 2 — Encode the solution
 ```java
-package com.buildwithwaqar.patterns.functional.kleisli;
+package com.buildwithwaqar.patterns.functional.kleisli.problem;
 
-import com.buildwithwaqar.patterns.functional.typeclass.Kind;
-import com.buildwithwaqar.patterns.functional.typeclass.Monad;
+import java.util.*;
+import java.util.function.*;
 
-import java.util.function.Function;
-
-/** Kleisli arrow A =&gt; F&lt;B&gt; — composable effectful functions. */
-public record Kleisli<F, A, B>(Function<A, Kind<F, B>> run) {
-    public Kind<F, B> apply(A a) { return run.apply(a); }
-
-    public <C> Kleisli<F, A, C> andThen(Monad<F> M, Kleisli<F, B, C> next) {
-        return new Kleisli<>(a -> M.flatMap(run.apply(a), next.run));
-    }
-
-    public static <F, A, B> Kleisli<F, A, B> of(Function<A, Kind<F, B>> f) {
-        return new Kleisli<>(f);
-    }
+final class Kleisli<A,B> {
+  private final Function<A, Optional<B>> run;
+  Kleisli(Function<A, Optional<B>> run){ this.run=run; }
+  static <A,B> Kleisli<A,B> of(Function<A, Optional<B>> f){ return new Kleisli<>(f); }
+  <C> Kleisli<A,C> andThen(Kleisli<B,C> next){ return new Kleisli<>(a -> run.apply(a).flatMap(next.run)); }
+  Optional<B> apply(A a){ return run.apply(a); }
+}
+final class AuthPipe {
+  static final Kleisli<String,Integer> parse = Kleisli.of(s -> { try { return Optional.of(Integer.parseInt(s)); } catch(Exception e){ return Optional.empty(); } });
+  static final Kleisli<Integer,Integer> enrich = Kleisli.of(id -> id>0? Optional.of(id+1000): Optional.empty());
+  static final Kleisli<Integer,String> authorize = Kleisli.of(id -> Optional.of("allow:"+id));
+  static final Kleisli<String,String> pipeline = parse.andThen(enrich).andThen(authorize);
 }
 
 ```
 
 ### Stage 3 — Runnable main
 ```java
-package com.buildwithwaqar.patterns.functional.kleisli;
-
-import com.buildwithwaqar.patterns.functional.kleisli.Kleisli;
-import com.buildwithwaqar.patterns.functional.typeclass.OptionKind;
-import dev.zazr.control.Option;
-/** Problem: compose parseInt → *2 fallible pipeline. */
-public final class UseCaseDemo {
-  public static void main(String[] a) {
-    System.out.println("=== Kleisli problem: fallible pipeline ===");
-    Kleisli<OptionKind.Witness, String, Integer> parse = Kleisli.of(s -> {
-      try { return OptionKind.lift(Option.some(Integer.parseInt(s))); }
-      catch (Exception e) { return OptionKind.lift(Option.none()); }
-    });
-    Kleisli<OptionKind.Witness, Integer, Integer> twice = Kleisli.of(n -> OptionKind.lift(Option.some(n * 2)));
-    var p = parse.andThen(OptionKind.MONAD, twice);
-    System.out.println("ok=" + OptionKind.lower(p.apply("21")));
-    System.out.println("bad=" + OptionKind.lower(p.apply("zz")));
+package com.buildwithwaqar.patterns.functional.kleisli.problem;
+import java.util.*; import java.util.function.*;
+public final class ProblemDemo {
+  public static void main(String[] args) {
+    System.out.println("=== Kleisli: parse → enrich → authorize ===");
+    System.out.println("--- naive ---"); System.out.println(NaiveAuth.auth("7"));
+System.out.println("--- kleisli ---");
+System.out.println(AuthPipe.pipeline.apply("7"));
+System.out.println(AuthPipe.pipeline.apply("x"));
+System.out.println(AuthPipe.pipeline.apply("-1"));
   }
 }
 
@@ -117,9 +97,13 @@ public final class UseCaseDemo {
 Narrate each line. Do not invent numbers on camera.
 
 ```text
-=== Kleisli problem: fallible pipeline ===
-ok=Some(42)
-bad=None
+=== Kleisli: parse → enrich → authorize ===
+--- naive ---
+allow:7
+--- kleisli ---
+Optional[allow:1007]
+Optional.empty
+Optional.empty
 ```
 
 Trace: match each printed line to a stage above. Fork the repo, set `JAVA_HOME` to JDK 25,
@@ -201,65 +185,3 @@ Java 25 / Zazr take, then slow down for when NOT to use Kleisli.
 **[10:30]** *(interview + recap)*
 Two interview questions, three takeaways, link the GitHub episode folder. I am Waqar —
 see you in the next one.
-
-
-## Studio Notes for Build with Waqar
-When you record this episode, keep the energy practical. Start with the product pain, not the pattern name. Viewers stay when they feel the bug before they learn the label. In CapCut, overlay the slide number in the corner and cut idle IDE scrolling. If a code block is long, zoom CapCut to the highlighted lines rather than shrinking the font on the slide. Re-run the Demo live once if your machine allows — viewers trust a terminal more than a screenshot. Finally, end with a single actionable challenge: ask them to open the repo, run the Demo, and mutate one assertion in the test to see the failure. That turns passive watching into practice.
-
-### CapCut Checklist
-- Import `slides.pdf` or the PNG sequence at 1920×1080.
-- Align voiceover to the timestamps in the Video Script section.
-- Keep lower-thirds short: pattern name + one-line intent.
-- Add a pinned comment with the GitHub path to this episode folder.
-
-### Common Recording Mistakes
-- Reading UML without showing running output.
-- Skipping the "when NOT to use" section — that is what seniors listen for.
-- Rushing trade-offs. Slow down here; it is interview gold.
-- Forgetting to mention the test class name so learners can `mvn -Dtest=... test`.
-
-
-## Practice Drill (Do This After Watching)
-1. Clone `waqarys/java-design-patterns` and set `JAVA_HOME` to JDK 25.
-2. Run the episode Demo (`mvn -q exec:java -Dexec.mainClass=...` or `java -cp ... Demo`).
-3. Break the implementation on purpose; watch the test fail; restore it.
-4. Write one alternative design in a scratch branch and compare readability.
-5. Explain the pattern out loud in sixty seconds without looking at notes — that is your introspective for interviews.
-
-## Glossary
-- **Force:** the design pressure (extensibility, coupling, allocation, testability) that makes a pattern worth considering.
-- **Role:** a participant name from the pattern (Context, Strategy, Client, Creator, Product).
-- **Smell:** a code signal that a force is unresolved (telescoping constructors, instanceof forests, god classes).
-- **Modernization:** the Java 25 / Zazr encoding that preserves the force-resolution with less ceremony.
-
-
-## Problem Deep Dive
-The concrete problem for this episode is: **Compose parseInt → enrichUser → authorize**.
-
-Walk the naive path slowly on camera. Ask viewers what breaks first when requirements change —
-a new file to load, a new payment currency, a new saga step, a new illegal state transition.
-That question is the force. The pattern is just the name we give the force once we have felt it.
-
-Then open the solution types and show the boundary: what the rest of the app is allowed to
-depend on, and what stays hidden. Highlight how the runnable main prints a meaningful trace —
-happy path and at least one failure path — so CapCut can cut between IDE and terminal without
-inventing numbers.
-
-Finally, spend a full minute on trade-offs. Seniors stay for the "when not". Juniors need the
-happy path. Your job on Build with Waqar is both.
-
-
-## Studio Notes for Build with Waqar
-When you record this episode, keep the energy practical. Start with the product pain, not the pattern name. Viewers stay when they feel the bug before they learn the label. In CapCut, overlay the slide number in the corner and cut idle IDE scrolling. If a code block is long, zoom CapCut to the highlighted lines rather than shrinking the font on the slide. Re-run the Demo live once if your machine allows — viewers trust a terminal more than a screenshot. Finally, end with a single actionable challenge: ask them to open the repo, run the Demo, and mutate one assertion in the test to see the failure. That turns passive watching into practice.
-
-### CapCut Checklist
-- Import `slides.pdf` or the PNG sequence at 1920×1080.
-- Align voiceover to the timestamps in the Video Script section.
-- Keep lower-thirds short: pattern name + one-line intent.
-- Add a pinned comment with the GitHub path to this episode folder.
-
-### Common Recording Mistakes
-- Reading UML without showing running output.
-- Skipping the "when NOT to use" section — that is what seniors listen for.
-- Rushing trade-offs. Slow down here; it is interview gold.
-- Forgetting to mention the test class name so learners can `mvn -Dtest=... test`.

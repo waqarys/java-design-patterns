@@ -1,9 +1,9 @@
 # Tagless Final
 
-**Season:** 7 · Advanced FP · **Category:** Functional · **Level:** Advanced · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar
+**Season:** 7 · Advanced FP · **Category:** Functional · **Level:** Advanced · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar
 
 ## Problem
-**Console greet with Option test interpreter**
+**User registration against UserRepo/Email/Logger algebras; IO + pure test interpreters**
 
 This episode is built around that concrete problem — not a shared StreamForge framing.
 You will see a real naive implementation that hurts, a full pattern-based solution, a
@@ -11,11 +11,11 @@ runnable main with meaningful stdout, and JUnit failure-path coverage where the 
 
 ## Hook
 Welcome back to **Build with Waqar**. Today we earn **Tagless Final** by solving one problem well:
-*Console greet with Option test interpreter*. By the end you will have walked naive pain → pattern refactor → real JDK 25
+*User registration against UserRepo/Email/Logger algebras; IO + pure test interpreters*. By the end you will have walked naive pain → pattern refactor → real JDK 25
 stdout → trade-offs, with CapCut slides and a spoken script.
 
 ## Intent
-Tagless Final exists because this force kept showing up: console greet with option test interpreter. Name the force, sketch
+Tagless Final exists because this force kept showing up: user registration against userrepo/email/logger algebras; io + pure test interpreters. Name the force, sketch
 the roles, and — critically — know when you would refuse the pattern.
 
 ## The Pain — Naive Design
@@ -24,17 +24,31 @@ failure, or couple call sites to a third-party shape. That feels fast on day one
 on day thirty.
 
 ```java
-package com.buildwithwaqar.patterns.functional.tagless;
+package com.buildwithwaqar.patterns.functional.tagless.problem;
 
-import com.buildwithwaqar.patterns.functional.tagless.TaglessFinal;
-import com.buildwithwaqar.patterns.functional.typeclass.OptionKind;
-/** Problem: greet via Console algebra; swap test vs prod interpreters. */
-public final class UseCaseDemo {
-  public static void main(String[] a) {
-    System.out.println("=== Tagless Final problem: swappable Console ===");
-    var console = new TaglessFinal.OptionConsole("Waqar");
-    System.out.println("name=" + OptionKind.lower(TaglessFinal.greet(OptionKind.MONAD, console)).get());
-  }
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+
+/** Naive: registration hard-wires Map DB + System.out email — untestable without mocks frameworks. */
+public final class NaiveRegistration {
+    private final Map<String, Algebras.User> db = new LinkedHashMap<>();
+    private final List<String> outbox = new ArrayList<>();
+
+    public Algebras.User register(String id, String email) {
+        if (db.containsKey(email)) {
+            System.out.println("dup " + email); // side effect baked in
+            return db.get(email);
+        }
+        var u = new Algebras.User(id, email);
+        db.put(email, u);
+        outbox.add("welcome->" + email); // cannot swap for test assertion easily in unit style
+        System.out.println("sent welcome to " + email);
+        return u;
+    }
+
+    public List<String> outbox() { return List.copyOf(outbox); }
 }
 
 ```
@@ -60,65 +74,129 @@ or distributed details behind it.
 
 ### Stage 2 — Encode the solution
 ```java
-package com.buildwithwaqar.patterns.functional.tagless;
+package com.buildwithwaqar.patterns.functional.tagless.problem;
 
-import com.buildwithwaqar.patterns.functional.typeclass.Kind;
-import com.buildwithwaqar.patterns.functional.typeclass.Monad;
-import com.buildwithwaqar.patterns.functional.typeclass.OptionKind;
-import dev.zazr.control.Option;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.function.Function;
 
 /**
- * Tagless Final: programs are written against an algebra (interface of capabilities),
- * not a concrete effect type. Interpreters provide the algebra for Option, IO, etc.
+ * Tagless Final algebras for user registration.
+ * Programs are written once against UserRepo/EmailSender/Logger; interpreters choose the effect.
  */
-public final class TaglessFinal {
-    private TaglessFinal() {}
+public final class Algebras {
+    private Algebras() {}
 
-    /** Unit type — Zazr Option rejects null, so Void is awkward; use a singleton. */
-    public enum Unit { INSTANCE }
+    public record User(String id, String email) {}
 
-    public interface Console<F> {
-        Kind<F, String> readLine();
-        Kind<F, Unit> printLine(String s);
+    /** Minimal "effect" wrapper — either Identity (prod sync) or accumulating TestState. */
+    public interface Kind<F, A> {
+        A unsafeRun();
     }
 
-    public static <F> Kind<F, String> greet(Monad<F> M, Console<F> console) {
-        return M.flatMap(console.printLine("What is your name?"), ignored ->
-                M.flatMap(console.readLine(), name ->
-                        M.flatMap(console.printLine("Hello, " + name), ignored2 ->
-                                M.pure(name))));
-    }
-
-    /** Test interpreter using Option as a trivial effect (pre-canned input). */
-    public static final class OptionConsole implements Console<OptionKind.Witness> {
-        private final String input;
-        public OptionConsole(String input) { this.input = input; }
-
-        public Kind<OptionKind.Witness, String> readLine() {
-            return OptionKind.lift(Option.some(input));
-        }
-
-        public Kind<OptionKind.Witness, Unit> printLine(String s) {
-            return OptionKind.lift(Option.some(Unit.INSTANCE));
+    public interface Monad<F> {
+        <A> Kind<F, A> pure(A a);
+        <A, B> Kind<F, B> flatMap(Kind<F, A> fa, Function<A, Kind<F, B>> f);
+        default <A, B> Kind<F, B> map(Kind<F, A> fa, Function<A, B> f) {
+            return flatMap(fa, a -> pure(f.apply(a)));
         }
     }
-}
 
+    public interface UserRepo<F> {
+        Kind<F, Optional<User>> findByEmail(String email);
+        Kind<F, User> save(User user);
+    }
+
+    public interface EmailSender<F> {
+        Kind<F, Void> send(String to, String subject, String body);
+    }
+
+    public interface Logger<F> {
+        Kind<F, Void> info(String msg);
+    }
+
+    /** Shared registration program — no concrete effect type. */
+    public static <F> Kind<F, User> register(
+            Monad<F> M, UserRepo<F> users, EmailSender<F> email, Logger<F> log,
+            String id, String address) {
+        return M.flatMap(log.info("register " + address), ignored ->
+                M.flatMap(users.findByEmail(address), existing -> {
+                    if (existing.isPresent()) {
+                        return M.flatMap(log.info("duplicate " + address), x ->
+                                M.pure(existing.get())); // return existing — caller may treat as failure
+                    }
+                    var user = new User(id, address);
+                    return M.flatMap(users.save(user), saved ->
+                            M.flatMap(email.send(address, "Welcome", "Hi " + id), sent ->
+                                    M.flatMap(log.info("registered " + id), y -> M.pure(saved))));
+                }));
+    }
+
+    // ---- Identity / "IO-style" interpreter (eager, side-effecting) ----
+    public enum IoWitness { W }
+    public record Io<A>(A value) implements Kind<IoWitness, A> {
+        public A unsafeRun() { return value; }
+    }
+    public static final Monad<IoWitness> IO = new Monad<>() {
+        public <A> Kind<IoWitness, A> pure(A a) { return new Io<>(a); }
+        public <A, B> Kind<IoWitness, B> flatMap(Kind<IoWitness, A> fa, Function<A, Kind<IoWitness, B>> f) {
+            return f.apply(fa.unsafeRun());
+        }
+    };
+
+    public static final class IoUserRepo implements UserRepo<IoWitness> {
+        private final Map<String, User> db = new LinkedHashMap<>();
+        public Kind<IoWitness, Optional<User>> findByEmail(String email) {
+            return new Io<>(Optional.ofNullable(db.get(email)));
+        }
+        public Kind<IoWitness, User> save(User user) {
+            db.put(user.email(), user);
+            return new Io<>(user);
+        }
+        public Map<String, User> db() { return Map.copyOf(db); }
+    }
+    public static final class IoEmail implements EmailSender<IoWitness> {
+        private final List<String> sent = new ArrayList<>();
+        public Kind<IoWitness, Void> send(String to, String subject, String body) {
+           
 ```
 
 ### Stage 3 — Runnable main
 ```java
-package com.buildwithwaqar.patterns.functional.tagless;
+package com.buildwithwaqar.patterns.functional.tagless.problem;
 
-import com.buildwithwaqar.patterns.functional.tagless.TaglessFinal;
-import com.buildwithwaqar.patterns.functional.typeclass.OptionKind;
-/** Problem: greet via Console algebra; swap test vs prod interpreters. */
-public final class UseCaseDemo {
-  public static void main(String[] a) {
-    System.out.println("=== Tagless Final problem: swappable Console ===");
-    var console = new TaglessFinal.OptionConsole("Waqar");
-    System.out.println("name=" + OptionKind.lower(TaglessFinal.greet(OptionKind.MONAD, console)).get());
-  }
+/** Problem: same registration program under IO-style and pure test interpreters. */
+public final class ProblemDemo {
+    public static void main(String[] args) {
+        System.out.println("=== Tagless Final: user registration algebras ===");
+        System.out.println("--- naive (hard-wired Map + System.out) ---");
+        var naive = new NaiveRegistration();
+        System.out.println(naive.register("u1", "a@b.c"));
+        System.out.println("outbox=" + naive.outbox());
+
+        System.out.println("--- IO-style interpreter ---");
+        var repo = new Algebras.IoUserRepo();
+        var mail = new Algebras.IoEmail();
+        var log = new Algebras.IoLogger();
+        var user = Algebras.register(Algebras.IO, repo, mail, log, "u2", "x@y.z").unsafeRun();
+        System.out.println("user=" + user);
+        System.out.println("emails=" + mail.sent());
+        System.out.println("logs=" + log.lines());
+
+        System.out.println("--- pure test interpreter (shared state) ---");
+        var state = Algebras.TestState.empty();
+        var prog = Algebras.register(
+                Algebras.TEST, new Algebras.TestUserRepo(), new Algebras.TestEmail(), new Algebras.TestLogger(),
+                "u3", "t@est.io");
+        var saved = ((Algebras.Test<Algebras.User>) prog).runWith(state);
+        System.out.println("user=" + saved);
+        System.out.println("emails=" + state.emails());
+        System.out.println("logs=" + state.logs());
+        System.out.println("db=" + state.users().keySet());
+    }
 }
 
 ```
@@ -127,8 +205,20 @@ public final class UseCaseDemo {
 Narrate each line. Do not invent numbers on camera.
 
 ```text
-=== Tagless Final problem: swappable Console ===
-name=Waqar
+=== Tagless Final: user registration algebras ===
+--- naive (hard-wired Map + System.out) ---
+sent welcome to a@b.c
+User[id=u1, email=a@b.c]
+outbox=[welcome->a@b.c]
+--- IO-style interpreter ---
+user=User[id=u2, email=x@y.z]
+emails=[x@y.z|Welcome|Hi u2]
+logs=[register x@y.z, registered u2]
+--- pure test interpreter (shared state) ---
+user=User[id=u3, email=t@est.io]
+emails=[t@est.io|Welcome]
+logs=[register t@est.io, registered u3]
+db=[t@est.io]
 ```
 
 Trace: match each printed line to a stage above. Fork the repo, set `JAVA_HOME` to JDK 25,
@@ -160,7 +250,7 @@ State vs Strategy, Free vs Tagless). Say the distinguishing sentence out loud.
 
 ## Interview Q&A
 **Q1. What concrete problem does Tagless Final solve here?**
-A: Console greet with Option test interpreter.
+A: User registration against UserRepo/Email/Logger algebras; IO + pure test interpreters.
 
 **Q2. What does the naive design get wrong?**
 A: Point at the naive code smells from this episode.
@@ -176,7 +266,7 @@ A: Give a smaller counterexample where a function, Option, or facade is enough.
 A: Records, sealed types, virtual threads, Zazr control types — pick what applies.
 
 ## Key Takeaways
-- Lead with the problem: Console greet with Option test interpreter.
+- Lead with the problem: User registration against UserRepo/Email/Logger algebras; IO + pure test interpreters.
 - Show naive pain before naming Tagless Final.
 - Run the Demo; trust JDK 25 stdout.
 - Teach when NOT to use it.
@@ -186,7 +276,7 @@ Record for **Build with Waqar**. OBS for capture, CapCut for assembly. Import `s
 
 **[0:00]** *(slide 01 title)*
 Hey everyone, welcome back to Build with Waqar. Today we solve a real problem with Tagless Final:
-Console greet with Option test interpreter.
+User registration against UserRepo/Email/Logger algebras; IO + pure test interpreters.
 
 **[0:40]** *(slide 02–03 problem)*
 I am not starting with a definition. Here is the product pain. Keep these names — they
@@ -210,65 +300,3 @@ Java 25 / Zazr take, then slow down for when NOT to use Tagless Final.
 **[10:30]** *(interview + recap)*
 Two interview questions, three takeaways, link the GitHub episode folder. I am Waqar —
 see you in the next one.
-
-
-## Studio Notes for Build with Waqar
-When you record this episode, keep the energy practical. Start with the product pain, not the pattern name. Viewers stay when they feel the bug before they learn the label. In CapCut, overlay the slide number in the corner and cut idle IDE scrolling. If a code block is long, zoom CapCut to the highlighted lines rather than shrinking the font on the slide. Re-run the Demo live once if your machine allows — viewers trust a terminal more than a screenshot. Finally, end with a single actionable challenge: ask them to open the repo, run the Demo, and mutate one assertion in the test to see the failure. That turns passive watching into practice.
-
-### CapCut Checklist
-- Import `slides.pdf` or the PNG sequence at 1920×1080.
-- Align voiceover to the timestamps in the Video Script section.
-- Keep lower-thirds short: pattern name + one-line intent.
-- Add a pinned comment with the GitHub path to this episode folder.
-
-### Common Recording Mistakes
-- Reading UML without showing running output.
-- Skipping the "when NOT to use" section — that is what seniors listen for.
-- Rushing trade-offs. Slow down here; it is interview gold.
-- Forgetting to mention the test class name so learners can `mvn -Dtest=... test`.
-
-
-## Practice Drill (Do This After Watching)
-1. Clone `waqarys/java-design-patterns` and set `JAVA_HOME` to JDK 25.
-2. Run the episode Demo (`mvn -q exec:java -Dexec.mainClass=...` or `java -cp ... Demo`).
-3. Break the implementation on purpose; watch the test fail; restore it.
-4. Write one alternative design in a scratch branch and compare readability.
-5. Explain the pattern out loud in sixty seconds without looking at notes — that is your introspective for interviews.
-
-## Glossary
-- **Force:** the design pressure (extensibility, coupling, allocation, testability) that makes a pattern worth considering.
-- **Role:** a participant name from the pattern (Context, Strategy, Client, Creator, Product).
-- **Smell:** a code signal that a force is unresolved (telescoping constructors, instanceof forests, god classes).
-- **Modernization:** the Java 25 / Zazr encoding that preserves the force-resolution with less ceremony.
-
-
-## Problem Deep Dive
-The concrete problem for this episode is: **Console greet with Option test interpreter**.
-
-Walk the naive path slowly on camera. Ask viewers what breaks first when requirements change —
-a new file to load, a new payment currency, a new saga step, a new illegal state transition.
-That question is the force. The pattern is just the name we give the force once we have felt it.
-
-Then open the solution types and show the boundary: what the rest of the app is allowed to
-depend on, and what stays hidden. Highlight how the runnable main prints a meaningful trace —
-happy path and at least one failure path — so CapCut can cut between IDE and terminal without
-inventing numbers.
-
-Finally, spend a full minute on trade-offs. Seniors stay for the "when not". Juniors need the
-happy path. Your job on Build with Waqar is both.
-
-
-## Studio Notes for Build with Waqar
-When you record this episode, keep the energy practical. Start with the product pain, not the pattern name. Viewers stay when they feel the bug before they learn the label. In CapCut, overlay the slide number in the corner and cut idle IDE scrolling. If a code block is long, zoom CapCut to the highlighted lines rather than shrinking the font on the slide. Re-run the Demo live once if your machine allows — viewers trust a terminal more than a screenshot. Finally, end with a single actionable challenge: ask them to open the repo, run the Demo, and mutate one assertion in the test to see the failure. That turns passive watching into practice.
-
-### CapCut Checklist
-- Import `slides.pdf` or the PNG sequence at 1920×1080.
-- Align voiceover to the timestamps in the Video Script section.
-- Keep lower-thirds short: pattern name + one-line intent.
-- Add a pinned comment with the GitHub path to this episode folder.
-
-### Common Recording Mistakes
-- Reading UML without showing running output.
-- Skipping the "when NOT to use" section — that is what seniors listen for.
-- Rushing trade-offs. Slow down here; it is interview gold.
-- Forgetting to mention the test class name so learners can `mvn -Dtest=... test`.

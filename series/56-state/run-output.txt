@@ -1,2 +1,7 @@
-=== State problem: pure bank simulation ===
-returned=120 newBalance=120
+=== State: pure RNG / bank balance ===
+--- naive ---
+90 73
+--- state RNG ---
+[90, 87]=87
+--- state bank ---
+75=75

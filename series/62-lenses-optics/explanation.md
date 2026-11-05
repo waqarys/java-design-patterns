@@ -1,6 +1,6 @@
 # Lenses & Optics
 
-**Season:** 7 · Advanced FP · **Category:** Functional · **Level:** Advanced · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar
+**Season:** 7 · Advanced FP · **Category:** Functional · **Level:** Advanced · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar
 
 ## Problem
 **Update nested city in immutable Person/Address**
@@ -24,18 +24,12 @@ failure, or couple call sites to a third-party shape. That feels fast on day one
 on day thirty.
 
 ```java
-package com.buildwithwaqar.patterns.functional.lens;
+package com.buildwithwaqar.patterns.functional.lens.problem;
 
-import com.buildwithwaqar.patterns.functional.lens.*;
-/** Problem: update nested city in immutable Person without manual copying. */
-public final class UseCaseDemo {
-  public static void main(String[] a) {
-    System.out.println("=== Lens problem: nested immutable update ===");
-    var p = new Person("Ada", new Address("London", "E1"));
-    var q = PersonLenses.personCity.modify(p, c -> "Paris");
-    System.out.println("before=" + p);
-    System.out.println("after=" + q);
-  }
+import java.util.*;
+
+public final class NaivePerson {
+  public static String move(String personJson, String city){ return personJson.replace("Old", city); }
 }
 
 ```
@@ -61,48 +55,41 @@ or distributed details behind it.
 
 ### Stage 2 — Encode the solution
 ```java
-package com.buildwithwaqar.patterns.functional.lens;
+package com.buildwithwaqar.patterns.functional.lens.problem;
 
-import java.util.function.BiFunction;
-import java.util.function.Function;
+import java.util.*;
+import java.util.function.*;
 
-/** Functional getter+setter pair for immutable updates. */
-public record Lens<S, A>(Function<S, A> get, BiFunction<S, A, S> set) {
-    public S modify(S s, Function<A, A> f) { return set.apply(s, f.apply(get.apply(s))); }
-
-    public <B> Lens<S, B> andThen(Lens<A, B> other) {
-        return new Lens<>(
-                s -> other.get.apply(get.apply(s)),
-                (s, b) -> set.apply(s, other.set.apply(get.apply(s), b))
-        );
-    }
+record Address(String city, String zip){}
+record Person(String name, Address address){}
+record Lens<S,A>(Function<S,A> get, BiFunction<S,A,S> set){
+  A getA(S s){ return get.apply(s); }
+  S setA(S s, A a){ return set.apply(s,a); }
+  <B> Lens<S,B> andThen(Lens<A,B> other){
+    return new Lens<>(s -> other.get.apply(get.apply(s)), (s,b) -> set.apply(s, other.set.apply(get.apply(s), b)));
+  }
 }
-
-record Address(String city, String zip) {}
-record Person(String name, Address address) {}
-
 final class PersonLenses {
-    static final Lens<Person, String> name = new Lens<>(Person::name, (p, n) -> new Person(n, p.address()));
-    static final Lens<Person, Address> address = new Lens<>(Person::address, (p, a) -> new Person(p.name(), a));
-    static final Lens<Address, String> city = new Lens<>(Address::city, (a, c) -> new Address(c, a.zip()));
-    static final Lens<Person, String> personCity = address.andThen(city);
+  static final Lens<Person,Address> address = new Lens<>(Person::address, (p,a)-> new Person(p.name(), a));
+  static final Lens<Address,String> city = new Lens<>(Address::city, (a,c)-> new Address(c, a.zip()));
+  static final Lens<Person,String> personCity = address.andThen(city);
 }
 
 ```
 
 ### Stage 3 — Runnable main
 ```java
-package com.buildwithwaqar.patterns.functional.lens;
-
-import com.buildwithwaqar.patterns.functional.lens.*;
-/** Problem: update nested city in immutable Person without manual copying. */
-public final class UseCaseDemo {
-  public static void main(String[] a) {
-    System.out.println("=== Lens problem: nested immutable update ===");
-    var p = new Person("Ada", new Address("London", "E1"));
-    var q = PersonLenses.personCity.modify(p, c -> "Paris");
-    System.out.println("before=" + p);
-    System.out.println("after=" + q);
+package com.buildwithwaqar.patterns.functional.lens.problem;
+import java.util.*; import java.util.function.*;
+public final class ProblemDemo {
+  public static void main(String[] args) {
+    System.out.println("=== Lenses: nested city update ===");
+    System.out.println("--- naive ---"); System.out.println(NaivePerson.move("{city:Old}", "NYC"));
+System.out.println("--- lenses ---");
+var p=new Person("Ada", new Address("Old", "10001"));
+var moved=PersonLenses.personCity.setA(p, "NYC");
+System.out.println(p); System.out.println(moved);
+System.out.println("city="+PersonLenses.personCity.getA(moved));
   }
 }
 
@@ -112,9 +99,13 @@ public final class UseCaseDemo {
 Narrate each line. Do not invent numbers on camera.
 
 ```text
-=== Lens problem: nested immutable update ===
-before=Person[name=Ada, address=Address[city=London, zip=E1]]
-after=Person[name=Ada, address=Address[city=Paris, zip=E1]]
+=== Lenses: nested city update ===
+--- naive ---
+{city:NYC}
+--- lenses ---
+Person[name=Ada, address=Address[city=Old, zip=10001]]
+Person[name=Ada, address=Address[city=NYC, zip=10001]]
+city=NYC
 ```
 
 Trace: match each printed line to a stage above. Fork the repo, set `JAVA_HOME` to JDK 25,
@@ -196,65 +187,3 @@ Java 25 / Zazr take, then slow down for when NOT to use Lenses.
 **[10:30]** *(interview + recap)*
 Two interview questions, three takeaways, link the GitHub episode folder. I am Waqar —
 see you in the next one.
-
-
-## Studio Notes for Build with Waqar
-When you record this episode, keep the energy practical. Start with the product pain, not the pattern name. Viewers stay when they feel the bug before they learn the label. In CapCut, overlay the slide number in the corner and cut idle IDE scrolling. If a code block is long, zoom CapCut to the highlighted lines rather than shrinking the font on the slide. Re-run the Demo live once if your machine allows — viewers trust a terminal more than a screenshot. Finally, end with a single actionable challenge: ask them to open the repo, run the Demo, and mutate one assertion in the test to see the failure. That turns passive watching into practice.
-
-### CapCut Checklist
-- Import `slides.pdf` or the PNG sequence at 1920×1080.
-- Align voiceover to the timestamps in the Video Script section.
-- Keep lower-thirds short: pattern name + one-line intent.
-- Add a pinned comment with the GitHub path to this episode folder.
-
-### Common Recording Mistakes
-- Reading UML without showing running output.
-- Skipping the "when NOT to use" section — that is what seniors listen for.
-- Rushing trade-offs. Slow down here; it is interview gold.
-- Forgetting to mention the test class name so learners can `mvn -Dtest=... test`.
-
-
-## Practice Drill (Do This After Watching)
-1. Clone `waqarys/java-design-patterns` and set `JAVA_HOME` to JDK 25.
-2. Run the episode Demo (`mvn -q exec:java -Dexec.mainClass=...` or `java -cp ... Demo`).
-3. Break the implementation on purpose; watch the test fail; restore it.
-4. Write one alternative design in a scratch branch and compare readability.
-5. Explain the pattern out loud in sixty seconds without looking at notes — that is your introspective for interviews.
-
-## Glossary
-- **Force:** the design pressure (extensibility, coupling, allocation, testability) that makes a pattern worth considering.
-- **Role:** a participant name from the pattern (Context, Strategy, Client, Creator, Product).
-- **Smell:** a code signal that a force is unresolved (telescoping constructors, instanceof forests, god classes).
-- **Modernization:** the Java 25 / Zazr encoding that preserves the force-resolution with less ceremony.
-
-
-## Problem Deep Dive
-The concrete problem for this episode is: **Update nested city in immutable Person/Address**.
-
-Walk the naive path slowly on camera. Ask viewers what breaks first when requirements change —
-a new file to load, a new payment currency, a new saga step, a new illegal state transition.
-That question is the force. The pattern is just the name we give the force once we have felt it.
-
-Then open the solution types and show the boundary: what the rest of the app is allowed to
-depend on, and what stays hidden. Highlight how the runnable main prints a meaningful trace —
-happy path and at least one failure path — so CapCut can cut between IDE and terminal without
-inventing numbers.
-
-Finally, spend a full minute on trade-offs. Seniors stay for the "when not". Juniors need the
-happy path. Your job on Build with Waqar is both.
-
-
-## Studio Notes for Build with Waqar
-When you record this episode, keep the energy practical. Start with the product pain, not the pattern name. Viewers stay when they feel the bug before they learn the label. In CapCut, overlay the slide number in the corner and cut idle IDE scrolling. If a code block is long, zoom CapCut to the highlighted lines rather than shrinking the font on the slide. Re-run the Demo live once if your machine allows — viewers trust a terminal more than a screenshot. Finally, end with a single actionable challenge: ask them to open the repo, run the Demo, and mutate one assertion in the test to see the failure. That turns passive watching into practice.
-
-### CapCut Checklist
-- Import `slides.pdf` or the PNG sequence at 1920×1080.
-- Align voiceover to the timestamps in the Video Script section.
-- Keep lower-thirds short: pattern name + one-line intent.
-- Add a pinned comment with the GitHub path to this episode folder.
-
-### Common Recording Mistakes
-- Reading UML without showing running output.
-- Skipping the "when NOT to use" section — that is what seniors listen for.
-- Rushing trade-offs. Slow down here; it is interview gold.
-- Forgetting to mention the test class name so learners can `mvn -Dtest=... test`.

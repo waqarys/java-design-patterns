@@ -1,3 +1,7 @@
-=== Kleisli problem: fallible pipeline ===
-ok=Some(42)
-bad=None
+=== Kleisli: parse → enrich → authorize ===
+--- naive ---
+allow:7
+--- kleisli ---
+Optional[allow:1007]
+Optional.empty
+Optional.empty

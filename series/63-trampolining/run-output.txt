@@ -1,2 +1,5 @@
-=== Trampoline problem: deep recursion ===
-sum100000=5000050000
+=== Trampoline: deep sum without SOE ===
+--- naive (may SOE for large n) ---
+5050
+--- trampoline ---
+5000050000

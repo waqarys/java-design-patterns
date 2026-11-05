@@ -1,3 +1,13 @@
-=== Free Monad problem: interpretable console script ===
-result=hi Waqar
-console=name?
+=== Free: bank-transfer DSL ===
+--- naive ---
+toBal=2500
+ledger={payroll=7500, alice=2500}
+--- Free program + Map interpreter ---
+toBal=2500 ledger={payroll=7500, alice=2500}
+--- logging interpreter ---
+log=[Transfer[from=payroll, to=bob, cents=100], Withdraw[account=payroll, cents=100], Deposit[account=bob, cents=100]]
+--- optimized Transfer → Withdraw+Deposit ---
+optLog=[Withdraw[account=payroll, cents=50], Deposit[account=bob, cents=50]]
+ledger={payroll=9950, bob=150}
+--- failure: insufficient funds ---
+caught=insufficient:empty

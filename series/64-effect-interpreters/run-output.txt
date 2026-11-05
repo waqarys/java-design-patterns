@@ -1,3 +1,12 @@
-=== IO / Effect Interpreter problem ===
-described hits=0
-run=rows=42 hits=1
+=== Effect Interpreters: read → HTTP → write ===
+--- naive ---
+OK:order-42
+--- prod interpreter ---
+SHIPPED:order-42
+log=[read:/in.txt, http:https://ship, write:/out.txt]
+out=SHIPPED:order-42
+--- test interpreter ---
+OK
+writes={/out.txt=OK}
+--- test failure: http down ---
+caught=http-down

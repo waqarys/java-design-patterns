@@ -1,9 +1,9 @@
 # Free Monad
 
-**Season:** 7 · Advanced FP · **Category:** Functional · **Level:** Advanced · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar
+**Season:** 7 · Advanced FP · **Category:** Functional · **Level:** Advanced · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar
 
 ## Problem
-**KV-store program interpreted by Map vs logging**
+**Bank-transfer DSL with Map interpreter + logging optimizer**
 
 This episode is built around that concrete problem — not a shared StreamForge framing.
 You will see a real naive implementation that hurts, a full pattern-based solution, a
@@ -11,11 +11,11 @@ runnable main with meaningful stdout, and JUnit failure-path coverage where the 
 
 ## Hook
 Welcome back to **Build with Waqar**. Today we earn **Free** by solving one problem well:
-*KV-store program interpreted by Map vs logging*. By the end you will have walked naive pain → pattern refactor → real JDK 25
+*Bank-transfer DSL with Map interpreter + logging optimizer*. By the end you will have walked naive pain → pattern refactor → real JDK 25
 stdout → trade-offs, with CapCut slides and a spoken script.
 
 ## Intent
-Free exists because this force kept showing up: kv-store program interpreted by map vs logging. Name the force, sketch
+Free exists because this force kept showing up: bank-transfer dsl with map interpreter + logging optimizer. Name the force, sketch
 the roles, and — critically — know when you would refuse the pattern.
 
 ## The Pain — Naive Design
@@ -24,18 +24,23 @@ failure, or couple call sites to a third-party shape. That feels fast on day one
 on day thirty.
 
 ```java
-package com.buildwithwaqar.patterns.functional.free;
+package com.buildwithwaqar.patterns.functional.free.problem;
 
-import com.buildwithwaqar.patterns.functional.free.Free;
-/** Problem: write a console script once; interpret with canned input in tests. */
-public final class UseCaseDemo {
-  public static void main(String[] a) {
-    System.out.println("=== Free Monad problem: interpretable console script ===");
-    Free<String> program = Free.printLine("name?").flatMap(x -> Free.readLine()).map(n -> "hi " + n);
-    var out = new StringBuilder();
-    System.out.println("result=" + Free.interpret(program, "Waqar", out));
-    System.out.println("console=" + out.toString().trim());
-  }
+import java.util.LinkedHashMap;
+import java.util.Map;
+
+/** Naive: transfer logic inlined; no program to optimize or log separately. */
+public final class NaiveBank {
+    private final Map<String, Integer> ledger = new LinkedHashMap<>();
+    public void seed(String acct, int cents) { ledger.put(acct, cents); }
+    public int transfer(String from, String to, int cents) {
+        int bal = ledger.getOrDefault(from, 0);
+        if (bal < cents) throw new IllegalStateException("insufficient:" + from);
+        ledger.put(from, bal - cents);
+        ledger.put(to, ledger.getOrDefault(to, 0) + cents);
+        return ledger.get(to);
+    }
+    public Map<String, Integer> ledger() { return Map.copyOf(ledger); }
 }
 
 ```
@@ -61,98 +66,137 @@ or distributed details behind it.
 
 ### Stage 2 — Encode the solution
 ```java
-package com.buildwithwaqar.patterns.functional.free;
+package com.buildwithwaqar.patterns.functional.free.problem;
 
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.function.Function;
 
-/** Free monad over a console instruction set (simplified educational encoding). */
-public abstract class Free<A> {
-    private Free() {}
+/** Free-style bank DSL: Balance / Withdraw / Deposit / Transfer as an AST of instructions. */
+public final class BankDsl {
+    private BankDsl() {}
 
-    public abstract <B> Free<B> flatMap(Function<? super A, Free<B>> f);
+    public sealed interface Instr permits Balance, Withdraw, Deposit, Transfer {}
+    public record Balance(String account) implements Instr {}
+    public record Withdraw(String account, int cents) implements Instr {}
+    public record Deposit(String account, int cents) implements Instr {}
+    public record Transfer(String from, String to, int cents) implements Instr {}
 
-    public final <B> Free<B> map(Function<? super A, ? extends B> f) {
-        return flatMap(a -> pure(f.apply(a)));
+    public abstract static class Free<A> {
+        private Free() {}
+        public abstract <B> Free<B> flatMap(Function<? super A, Free<B>> f);
+        public final <B> Free<B> map(Function<? super A, ? extends B> f) {
+            return flatMap(a -> pure(f.apply(a)));
+        }
+        public static <A> Free<A> pure(A a) { return new Pure<>(a); }
+        public static Free<Integer> balance(String acct) { return new Suspend<>(new Balance(acct)); }
+        public static Free<Void> withdraw(String acct, int cents) { return new Suspend<>(new Withdraw(acct, cents)); }
+        public static Free<Void> deposit(String acct, int cents) { return new Suspend<>(new Deposit(acct, cents)); }
+        public static Free<Void> transfer(String from, String to, int cents) {
+            return new Suspend<>(new Transfer(from, to, cents));
+        }
     }
-
-    public static <A> Free<A> pure(A a) { return new Pure<>(a); }
-
-    public static Free<Void> printLine(String s) { return new SuspendPrint(s); }
-
-    public static Free<String> readLine() { return SuspendRead.INSTANCE; }
 
     private static final class Pure<A> extends Free<A> {
-        private final A value;
+        final A value;
         Pure(A value) { this.value = value; }
-        A value() { return value; }
         public <B> Free<B> flatMap(Function<? super A, Free<B>> f) { return f.apply(value); }
     }
-
-    private static final class SuspendPrint extends Free<Void> {
-        private final String line;
-        SuspendPrint(String line) { this.line = line; }
-        public <B> Free<B> flatMap(Function<? super Void, Free<B>> f) {
-            return new Bind<>(this, f);
-        }
+    private static final class Suspend<A> extends Free<A> {
+        final Instr instr;
+        Suspend(Instr instr) { this.instr = instr; }
+        public <B> Free<B> flatMap(Function<? super A, Free<B>> f) { return new Bind<>(this, f); }
     }
-
-    private static final class SuspendRead extends Free<String> {
-        static final SuspendRead INSTANCE = new SuspendRead();
-        public <B> Free<B> flatMap(Function<? super String, Free<B>> f) {
-            return new Bind<>(this, f);
-        }
-    }
-
     private static final class Bind<A, B> extends Free<B> {
-        private final Free<A> prev;
-        private final Function<? super A, Free<B>> f;
-        Bind(Free<A> prev, Function<? super A, Free<B>> f) {
-            this.prev = prev;
-            this.f = f;
-        }
+        final Free<A> prev;
+        final Function<? super A, Free<B>> f;
+        Bind(Free<A> prev, Function<? super A, Free<B>> f) { this.prev = prev; this.f = f; }
         public <C> Free<C> flatMap(Function<? super B, Free<C>> g) {
             return new Bind<>(prev, a -> f.apply(a).flatMap(g));
         }
     }
 
+    /** Optimize Transfer into Withdraw+Deposit for the Map interpreter. */
     @SuppressWarnings({"rawtypes", "unchecked"})
-    public static <A> A interpret(Free<A> program, String cannedInput, StringBuilder out) {
+    public static <A> Free<A> optimize(Free<A> program) {
+        // rewrite Suspend(Transfer) into withdraw.flatMap(_ -> deposit)
         Free cur = program;
-        while (true) {
-            if (cur instanceof Pure<?> p) {
-                return (A) p.value();
-            } else if (cur instanceof SuspendPrint sp) {
-                out.append(sp.line).append('\n');
-                cur = pure(null);
-            } else if (cur instanceof SuspendRead) {
-                cur = pure(cannedInput);
-            } else if (cur instanceof Bind<?, ?> b) {
-                Object inner = interpret(b.prev, cannedInput, out);
-                Function f = b.f;
-                cur = (Free) f.apply(inner);
-            } else {
-                throw new IllegalStateException(cur.getClass().getName());
-            }
+        if (cur instanceof Suspend<?> s && s.instr instanceof Transfer t) {
+            return (Free<A>) Free.withdraw(t.from(), t.cents())
+                    .flatMap(x -> Free.deposit(t.to(), t.cents()));
         }
+        if (cur instanceof Bind<?, ?> b) {
+            Free optPrev = optimize(b.prev);
+            return new Bind<>(optPrev, a -> { @SuppressWarnings("unchecked") Function f = b.f; return optimize((Free) f.apply(a)); });
+        }
+        return program;
     }
-}
 
+    public static <A> A interpretMap(Free<A> program, Map<String, Integer> ledger) {
+        return interpretMap(program, ledger, null);
+    }
+
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    public static <A> A interpretMap(Free<A> program, Map<String, Integer> ledger, List<String> log) {
+        Fr
 ```
 
 ### Stage 3 — Runnable main
 ```java
-package com.buildwithwaqar.patterns.functional.free;
+package com.buildwithwaqar.patterns.functional.free.problem;
 
-import com.buildwithwaqar.patterns.functional.free.Free;
-/** Problem: write a console script once; interpret with canned input in tests. */
-public final class UseCaseDemo {
-  public static void main(String[] a) {
-    System.out.println("=== Free Monad problem: interpretable console script ===");
-    Free<String> program = Free.printLine("name?").flatMap(x -> Free.readLine()).map(n -> "hi " + n);
-    var out = new StringBuilder();
-    System.out.println("result=" + Free.interpret(program, "Waqar", out));
-    System.out.println("console=" + out.toString().trim());
-  }
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+
+/** Problem: bank-transfer DSL — Map interpreter + logging + Transfer optimizer. */
+public final class ProblemDemo {
+    public static void main(String[] args) {
+        System.out.println("=== Free: bank-transfer DSL ===");
+        System.out.println("--- naive ---");
+        var naive = new NaiveBank();
+        naive.seed("payroll", 10_000);
+        naive.seed("alice", 0);
+        System.out.println("toBal=" + naive.transfer("payroll", "alice", 2500));
+        System.out.println("ledger=" + naive.ledger());
+
+        System.out.println("--- Free program + Map interpreter ---");
+        var ledger = new LinkedHashMap<String, Integer>();
+        ledger.put("payroll", 10_000);
+        ledger.put("alice", 0);
+        var prog = BankDsl.paydayBonus("payroll", "alice", 2500);
+        int bal = BankDsl.interpretMap(prog, ledger);
+        System.out.println("toBal=" + bal + " ledger=" + ledger);
+
+        System.out.println("--- logging interpreter ---");
+        var ledger2 = new LinkedHashMap<String, Integer>();
+        ledger2.put("payroll", 10_000);
+        ledger2.put("bob", 0);
+        List<String> log = new ArrayList<>();
+        BankDsl.interpretMap(BankDsl.Free.transfer("payroll", "bob", 100), ledger2, log);
+        System.out.println("log=" + log);
+
+        System.out.println("--- optimized Transfer → Withdraw+Deposit ---");
+        var opt = BankDsl.optimize(BankDsl.Free.transfer("payroll", "bob", 50));
+        var ledger3 = new LinkedHashMap<String, Integer>();
+        ledger3.put("payroll", 10_000);
+        ledger3.put("bob", 100);
+        List<String> log3 = new ArrayList<>();
+        BankDsl.interpretMap(opt, ledger3, log3);
+        System.out.println("optLog=" + log3);
+        System.out.println("ledger=" + ledger3);
+
+        System.out.println("--- failure: insufficient funds ---");
+        try {
+            var bad = new LinkedHashMap<String, Integer>();
+            bad.put("empty", 0);
+            BankDsl.interpretMap(BankDsl.Free.withdraw("empty", 1), bad);
+        } catch (IllegalStateException e) {
+            System.out.println("caught=" + e.getMessage());
+        }
+    }
 }
 
 ```
@@ -161,9 +205,19 @@ public final class UseCaseDemo {
 Narrate each line. Do not invent numbers on camera.
 
 ```text
-=== Free Monad problem: interpretable console script ===
-result=hi Waqar
-console=name?
+=== Free: bank-transfer DSL ===
+--- naive ---
+toBal=2500
+ledger={payroll=7500, alice=2500}
+--- Free program + Map interpreter ---
+toBal=2500 ledger={payroll=7500, alice=2500}
+--- logging interpreter ---
+log=[Transfer[from=payroll, to=bob, cents=100], Withdraw[account=payroll, cents=100], Deposit[account=bob, cents=100]]
+--- optimized Transfer → Withdraw+Deposit ---
+optLog=[Withdraw[account=payroll, cents=50], Deposit[account=bob, cents=50]]
+ledger={payroll=9950, bob=150}
+--- failure: insufficient funds ---
+caught=insufficient:empty
 ```
 
 Trace: match each printed line to a stage above. Fork the repo, set `JAVA_HOME` to JDK 25,
@@ -195,7 +249,7 @@ State vs Strategy, Free vs Tagless). Say the distinguishing sentence out loud.
 
 ## Interview Q&A
 **Q1. What concrete problem does Free solve here?**
-A: KV-store program interpreted by Map vs logging.
+A: Bank-transfer DSL with Map interpreter + logging optimizer.
 
 **Q2. What does the naive design get wrong?**
 A: Point at the naive code smells from this episode.
@@ -211,7 +265,7 @@ A: Give a smaller counterexample where a function, Option, or facade is enough.
 A: Records, sealed types, virtual threads, Zazr control types — pick what applies.
 
 ## Key Takeaways
-- Lead with the problem: KV-store program interpreted by Map vs logging.
+- Lead with the problem: Bank-transfer DSL with Map interpreter + logging optimizer.
 - Show naive pain before naming Free.
 - Run the Demo; trust JDK 25 stdout.
 - Teach when NOT to use it.
@@ -221,7 +275,7 @@ Record for **Build with Waqar**. OBS for capture, CapCut for assembly. Import `s
 
 **[0:00]** *(slide 01 title)*
 Hey everyone, welcome back to Build with Waqar. Today we solve a real problem with Free:
-KV-store program interpreted by Map vs logging.
+Bank-transfer DSL with Map interpreter + logging optimizer.
 
 **[0:40]** *(slide 02–03 problem)*
 I am not starting with a definition. Here is the product pain. Keep these names — they
@@ -245,49 +299,3 @@ Java 25 / Zazr take, then slow down for when NOT to use Free.
 **[10:30]** *(interview + recap)*
 Two interview questions, three takeaways, link the GitHub episode folder. I am Waqar —
 see you in the next one.
-
-
-## Studio Notes for Build with Waqar
-When you record this episode, keep the energy practical. Start with the product pain, not the pattern name. Viewers stay when they feel the bug before they learn the label. In CapCut, overlay the slide number in the corner and cut idle IDE scrolling. If a code block is long, zoom CapCut to the highlighted lines rather than shrinking the font on the slide. Re-run the Demo live once if your machine allows — viewers trust a terminal more than a screenshot. Finally, end with a single actionable challenge: ask them to open the repo, run the Demo, and mutate one assertion in the test to see the failure. That turns passive watching into practice.
-
-### CapCut Checklist
-- Import `slides.pdf` or the PNG sequence at 1920×1080.
-- Align voiceover to the timestamps in the Video Script section.
-- Keep lower-thirds short: pattern name + one-line intent.
-- Add a pinned comment with the GitHub path to this episode folder.
-
-### Common Recording Mistakes
-- Reading UML without showing running output.
-- Skipping the "when NOT to use" section — that is what seniors listen for.
-- Rushing trade-offs. Slow down here; it is interview gold.
-- Forgetting to mention the test class name so learners can `mvn -Dtest=... test`.
-
-
-## Practice Drill (Do This After Watching)
-1. Clone `waqarys/java-design-patterns` and set `JAVA_HOME` to JDK 25.
-2. Run the episode Demo (`mvn -q exec:java -Dexec.mainClass=...` or `java -cp ... Demo`).
-3. Break the implementation on purpose; watch the test fail; restore it.
-4. Write one alternative design in a scratch branch and compare readability.
-5. Explain the pattern out loud in sixty seconds without looking at notes — that is your introspective for interviews.
-
-## Glossary
-- **Force:** the design pressure (extensibility, coupling, allocation, testability) that makes a pattern worth considering.
-- **Role:** a participant name from the pattern (Context, Strategy, Client, Creator, Product).
-- **Smell:** a code signal that a force is unresolved (telescoping constructors, instanceof forests, god classes).
-- **Modernization:** the Java 25 / Zazr encoding that preserves the force-resolution with less ceremony.
-
-
-## Problem Deep Dive
-The concrete problem for this episode is: **KV-store program interpreted by Map vs logging**.
-
-Walk the naive path slowly on camera. Ask viewers what breaks first when requirements change —
-a new file to load, a new payment currency, a new saga step, a new illegal state transition.
-That question is the force. The pattern is just the name we give the force once we have felt it.
-
-Then open the solution types and show the boundary: what the rest of the app is allowed to
-depend on, and what stays hidden. Highlight how the runnable main prints a meaningful trace —
-happy path and at least one failure path — so CapCut can cut between IDE and terminal without
-inventing numbers.
-
-Finally, spend a full minute on trade-offs. Seniors stay for the "when not". Juniors need the
-happy path. Your job on Build with Waqar is both.

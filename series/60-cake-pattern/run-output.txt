@@ -1,2 +1,14 @@
-=== Cake problem: wire user welcome flow ===
-sent:42@example.com:welcome 42
+=== Cake: repo → service → controller ===
+--- naive ---
+email a@b.c
+201:u1
+--- live cake ---
+201:u2
+200:hello x@y.z
+mail=[x@y.z:welcome u2]
+409:exists:u2
+--- test cake with fakes ---
+200:hello s@e.ed
+201:u3
+mail=[t@est.io:welcome u3]
+404:missing:missing

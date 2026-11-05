@@ -1,9 +1,9 @@
 # Type Classes via Dictionaries
 
-**Season:** 7 · Advanced FP · **Category:** Functional · **Level:** Advanced · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar
+**Season:** 7 · Advanced FP · **Category:** Functional · **Level:** Advanced · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar
 
 ## Problem
-**Explicit Monad dictionary for Option**
+**JSON encoder + Show/Eq for domain records and composites**
 
 This episode is built around that concrete problem — not a shared StreamForge framing.
 You will see a real naive implementation that hurts, a full pattern-based solution, a
@@ -11,11 +11,11 @@ runnable main with meaningful stdout, and JUnit failure-path coverage where the 
 
 ## Hook
 Welcome back to **Build with Waqar**. Today we earn **Type Classes** by solving one problem well:
-*Explicit Monad dictionary for Option*. By the end you will have walked naive pain → pattern refactor → real JDK 25
+*JSON encoder + Show/Eq for domain records and composites*. By the end you will have walked naive pain → pattern refactor → real JDK 25
 stdout → trade-offs, with CapCut slides and a spoken script.
 
 ## Intent
-Type Classes exists because this force kept showing up: explicit monad dictionary for option. Name the force, sketch
+Type Classes exists because this force kept showing up: json encoder + show/eq for domain records and composites. Name the force, sketch
 the roles, and — critically — know when you would refuse the pattern.
 
 ## The Pain — Naive Design
@@ -24,17 +24,16 @@ failure, or couple call sites to a third-party shape. That feels fast on day one
 on day thirty.
 
 ```java
-package com.buildwithwaqar.patterns.functional.typeclass;
+package com.buildwithwaqar.patterns.functional.typeclass.problem;
 
-import com.buildwithwaqar.patterns.functional.typeclass.*;
-import dev.zazr.control.Option;
-/** Problem: map over Option via an explicit Monad dictionary (no HKTs). */
-public final class UseCaseDemo {
-  public static void main(String[] a) {
-    System.out.println("=== Typeclass/Monad problem: Option dictionary ===");
-    var fa = OptionKind.lift(Option.some(21));
-    System.out.println(OptionKind.lower(OptionKind.MONAD.map(fa, n -> n * 2)));
-  }
+/** Naive: ad-hoc toString/JSON in every call site — no reuse, easy to drift. */
+public final class NaiveJson {
+    public static String moneyJson(TypeClasses.Money m) {
+        return "{cents:" + m.cents() + "}"; // forgot currency
+    }
+    public static String orderJson(TypeClasses.Order o) {
+        return "{id:" + o.id() + "}"; // forgot items
+    }
 }
 
 ```
@@ -60,49 +59,70 @@ or distributed details behind it.
 
 ### Stage 2 — Encode the solution
 ```java
-package com.buildwithwaqar.patterns.functional.typeclass;
+package com.buildwithwaqar.patterns.functional.typeclass.problem;
 
-import java.util.function.Function;
+import java.util.List;
+import java.util.Objects;
+import java.util.stream.Collectors;
 
-public interface Applicative<F> extends Functor<F> {
-    <A> Kind<F, A> pure(A a);
-    <A, B> Kind<F, B> ap(Kind<F, Function<A, B>> ff, Kind<F, A> fa);
-}
+/** Explicit type-class dictionaries: Show, Eq, JsonEncoder for domain records. */
+public final class TypeClasses {
+    private TypeClasses() {}
 
+    public record Money(String currency, int cents) {}
+    public record LineItem(String sku, int qty, Money price) {}
+    public record Order(String id, List<LineItem> items) {}
 
-package com.buildwithwaqar.patterns.functional.typeclass;
+    public interface Show<A> { String show(A a); }
+    public interface Eq<A> { boolean eqv(A a, A b); }
+    public interface JsonEncoder<A> { String encode(A a); }
 
-import java.util.function.Function;
+    public static final Show<Money> showMoney = m -> m.currency() + " " + (m.cents() / 100.0);
+    public static final Eq<Money> eqMoney = (a, b) ->
+            Objects.equals(a.currency(), b.currency()) && a.cents() == b.cents();
+    public static final JsonEncoder<Money> jsonMoney = m ->
+            "{\"currency\":\"" + m.currency() + "\",\"cents\":" + m.cents() + "}";
 
-public interface Monad<F> extends Applicative<F> {
-    <A, B> Kind<F, B> flatMap(Kind<F, A> fa, Function<? super A, ? extends Kind<F, B>> f);
+    public static final Show<LineItem> showLine = li ->
+            li.qty() + "x" + li.sku() + "@" + showMoney.show(li.price());
+    public static final JsonEncoder<LineItem> jsonLine = li ->
+            "{\"sku\":\"" + li.sku() + "\",\"qty\":" + li.qty() + ",\"price\":" + jsonMoney.encode(li.price()) + "}";
 
-    @Override
-    default <A, B> Kind<F, B> map(Kind<F, A> fa, Function<? super A, ? extends B> f) {
-        return flatMap(fa, a -> pure(f.apply(a)));
-    }
-
-    @Override
-    default <A, B> Kind<F, B> ap(Kind<F, Function<A, B>> ff, Kind<F, A> fa) {
-        return flatMap(ff, f -> map(fa, f));
-    }
+    /** Derivation for composites. */
+    public static final JsonEncoder<Order> jsonOrder = o -> {
+        String items = o.items().stream().map(jsonLine::encode).collect(Collectors.joining(","));
+        return "{\"id\":\"" + o.id() + "\",\"items\":[" + items + "]}";
+    };
+    public static final Show<Order> showOrder = o ->
+            "Order(" + o.id() + ": " + o.items().stream().map(showLine::show).collect(Collectors.joining(", ")) + ")";
+    public static final Eq<Order> eqOrder = (a, b) ->
+            Objects.equals(a.id(), b.id()) && a.items().equals(b.items());
 }
 
 ```
 
 ### Stage 3 — Runnable main
 ```java
-package com.buildwithwaqar.patterns.functional.typeclass;
+package com.buildwithwaqar.patterns.functional.typeclass.problem;
 
-import com.buildwithwaqar.patterns.functional.typeclass.*;
-import dev.zazr.control.Option;
-/** Problem: map over Option via an explicit Monad dictionary (no HKTs). */
-public final class UseCaseDemo {
-  public static void main(String[] a) {
-    System.out.println("=== Typeclass/Monad problem: Option dictionary ===");
-    var fa = OptionKind.lift(Option.some(21));
-    System.out.println(OptionKind.lower(OptionKind.MONAD.map(fa, n -> n * 2)));
-  }
+import java.util.List;
+
+public final class ProblemDemo {
+    public static void main(String[] args) {
+        System.out.println("=== Type Classes: Show / Eq / JsonEncoder ===");
+        var m = new TypeClasses.Money("USD", 1999);
+        var order = new TypeClasses.Order("o1", List.of(
+                new TypeClasses.LineItem("SKU1", 2, m),
+                new TypeClasses.LineItem("SKU2", 1, new TypeClasses.Money("USD", 500))));
+        System.out.println("--- naive (incomplete JSON) ---");
+        System.out.println(NaiveJson.moneyJson(m));
+        System.out.println(NaiveJson.orderJson(order));
+        System.out.println("--- type-class dictionaries ---");
+        System.out.println("show=" + TypeClasses.showOrder.show(order));
+        System.out.println("json=" + TypeClasses.jsonOrder.encode(order));
+        System.out.println("eqSelf=" + TypeClasses.eqOrder.eqv(order, order));
+        System.out.println("eqOther=" + TypeClasses.eqOrder.eqv(order, new TypeClasses.Order("o2", List.of())));
+    }
 }
 
 ```
@@ -111,8 +131,15 @@ public final class UseCaseDemo {
 Narrate each line. Do not invent numbers on camera.
 
 ```text
-=== Typeclass/Monad problem: Option dictionary ===
-Some(42)
+=== Type Classes: Show / Eq / JsonEncoder ===
+--- naive (incomplete JSON) ---
+{cents:1999}
+{id:o1}
+--- type-class dictionaries ---
+show=Order(o1: 2xSKU1@USD 19.99, 1xSKU2@USD 5.0)
+json={"id":"o1","items":[{"sku":"SKU1","qty":2,"price":{"currency":"USD","cents":1999}},{"sku":"SKU2","qty":1,"price":{"currency":"USD","cents":500}}]}
+eqSelf=true
+eqOther=false
 ```
 
 Trace: match each printed line to a stage above. Fork the repo, set `JAVA_HOME` to JDK 25,
@@ -144,7 +171,7 @@ State vs Strategy, Free vs Tagless). Say the distinguishing sentence out loud.
 
 ## Interview Q&A
 **Q1. What concrete problem does Type Classes solve here?**
-A: Explicit Monad dictionary for Option.
+A: JSON encoder + Show/Eq for domain records and composites.
 
 **Q2. What does the naive design get wrong?**
 A: Point at the naive code smells from this episode.
@@ -160,7 +187,7 @@ A: Give a smaller counterexample where a function, Option, or facade is enough.
 A: Records, sealed types, virtual threads, Zazr control types — pick what applies.
 
 ## Key Takeaways
-- Lead with the problem: Explicit Monad dictionary for Option.
+- Lead with the problem: JSON encoder + Show/Eq for domain records and composites.
 - Show naive pain before naming Type Classes.
 - Run the Demo; trust JDK 25 stdout.
 - Teach when NOT to use it.
@@ -170,7 +197,7 @@ Record for **Build with Waqar**. OBS for capture, CapCut for assembly. Import `s
 
 **[0:00]** *(slide 01 title)*
 Hey everyone, welcome back to Build with Waqar. Today we solve a real problem with Type Classes:
-Explicit Monad dictionary for Option.
+JSON encoder + Show/Eq for domain records and composites.
 
 **[0:40]** *(slide 02–03 problem)*
 I am not starting with a definition. Here is the product pain. Keep these names — they
@@ -194,65 +221,3 @@ Java 25 / Zazr take, then slow down for when NOT to use Type Classes.
 **[10:30]** *(interview + recap)*
 Two interview questions, three takeaways, link the GitHub episode folder. I am Waqar —
 see you in the next one.
-
-
-## Studio Notes for Build with Waqar
-When you record this episode, keep the energy practical. Start with the product pain, not the pattern name. Viewers stay when they feel the bug before they learn the label. In CapCut, overlay the slide number in the corner and cut idle IDE scrolling. If a code block is long, zoom CapCut to the highlighted lines rather than shrinking the font on the slide. Re-run the Demo live once if your machine allows — viewers trust a terminal more than a screenshot. Finally, end with a single actionable challenge: ask them to open the repo, run the Demo, and mutate one assertion in the test to see the failure. That turns passive watching into practice.
-
-### CapCut Checklist
-- Import `slides.pdf` or the PNG sequence at 1920×1080.
-- Align voiceover to the timestamps in the Video Script section.
-- Keep lower-thirds short: pattern name + one-line intent.
-- Add a pinned comment with the GitHub path to this episode folder.
-
-### Common Recording Mistakes
-- Reading UML without showing running output.
-- Skipping the "when NOT to use" section — that is what seniors listen for.
-- Rushing trade-offs. Slow down here; it is interview gold.
-- Forgetting to mention the test class name so learners can `mvn -Dtest=... test`.
-
-
-## Practice Drill (Do This After Watching)
-1. Clone `waqarys/java-design-patterns` and set `JAVA_HOME` to JDK 25.
-2. Run the episode Demo (`mvn -q exec:java -Dexec.mainClass=...` or `java -cp ... Demo`).
-3. Break the implementation on purpose; watch the test fail; restore it.
-4. Write one alternative design in a scratch branch and compare readability.
-5. Explain the pattern out loud in sixty seconds without looking at notes — that is your introspective for interviews.
-
-## Glossary
-- **Force:** the design pressure (extensibility, coupling, allocation, testability) that makes a pattern worth considering.
-- **Role:** a participant name from the pattern (Context, Strategy, Client, Creator, Product).
-- **Smell:** a code signal that a force is unresolved (telescoping constructors, instanceof forests, god classes).
-- **Modernization:** the Java 25 / Zazr encoding that preserves the force-resolution with less ceremony.
-
-
-## Problem Deep Dive
-The concrete problem for this episode is: **Explicit Monad dictionary for Option**.
-
-Walk the naive path slowly on camera. Ask viewers what breaks first when requirements change —
-a new file to load, a new payment currency, a new saga step, a new illegal state transition.
-That question is the force. The pattern is just the name we give the force once we have felt it.
-
-Then open the solution types and show the boundary: what the rest of the app is allowed to
-depend on, and what stays hidden. Highlight how the runnable main prints a meaningful trace —
-happy path and at least one failure path — so CapCut can cut between IDE and terminal without
-inventing numbers.
-
-Finally, spend a full minute on trade-offs. Seniors stay for the "when not". Juniors need the
-happy path. Your job on Build with Waqar is both.
-
-
-## Studio Notes for Build with Waqar
-When you record this episode, keep the energy practical. Start with the product pain, not the pattern name. Viewers stay when they feel the bug before they learn the label. In CapCut, overlay the slide number in the corner and cut idle IDE scrolling. If a code block is long, zoom CapCut to the highlighted lines rather than shrinking the font on the slide. Re-run the Demo live once if your machine allows — viewers trust a terminal more than a screenshot. Finally, end with a single actionable challenge: ask them to open the repo, run the Demo, and mutate one assertion in the test to see the failure. That turns passive watching into practice.
-
-### CapCut Checklist
-- Import `slides.pdf` or the PNG sequence at 1920×1080.
-- Align voiceover to the timestamps in the Video Script section.
-- Keep lower-thirds short: pattern name + one-line intent.
-- Add a pinned comment with the GitHub path to this episode folder.
-
-### Common Recording Mistakes
-- Reading UML without showing running output.
-- Skipping the "when NOT to use" section — that is what seniors listen for.
-- Rushing trade-offs. Slow down here; it is interview gold.
-- Forgetting to mention the test class name so learners can `mvn -Dtest=... test`.

@@ -1,6 +1,6 @@
 # VAVR vs Zazr Deep Dive
 
-**Season:** 7 · Advanced FP · **Category:** Functional · **Level:** Advanced · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar
+**Season:** 7 · Advanced FP · **Category:** Functional · **Level:** Advanced · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar
 
 ## Problem
 **Same Option describe in both libraries**
@@ -24,16 +24,12 @@ failure, or couple call sites to a third-party shape. That feels fast on day one
 on day thirty.
 
 ```java
-package com.buildwithwaqar.patterns.functional.vavrcompare;
+package com.buildwithwaqar.patterns.functional.vavrcompare.problem;
 
-import com.buildwithwaqar.patterns.functional.vavrcompare.VavrVsZazr;
-/** Problem: migrate Option describe from VAVR to Zazr pattern matching. */
-public final class UseCaseDemo {
-  public static void main(String[] a) {
-    System.out.println("=== VAVR vs Zazr problem ===");
-    System.out.println("vavr=" + VavrVsZazr.vavrDescribe(io.vavr.control.Option.some(7)));
-    System.out.println("zazr=" + VavrVsZazr.zazrDescribe(dev.zazr.control.Option.some(7)));
-  }
+import java.util.*;
+
+public final class NaiveOpt {
+  public static String describe(String s){ return s==null? "none": "some:"+s; }
 }
 
 ```
@@ -59,37 +55,37 @@ or distributed details behind it.
 
 ### Stage 2 — Encode the solution
 ```java
-package com.buildwithwaqar.patterns.functional.vavrcompare;
+package com.buildwithwaqar.patterns.functional.vavrcompare.problem;
 
-/** Side-by-side Option usage — VAVR (classic) vs Zazr (Java 25 sealed/records). */
-public final class VavrVsZazr {
-    private VavrVsZazr() {}
+import java.util.*;
+import java.util.function.*;
 
-    public static String vavrDescribe(io.vavr.control.Option<Integer> opt) {
-        return opt.map(n -> "got " + n).getOrElse("missing");
-    }
-
-    public static String zazrDescribe(dev.zazr.control.Option<Integer> opt) {
-        return switch (opt) {
-            case dev.zazr.control.Option.Some(var n) -> "got " + n;
-            case dev.zazr.control.Option.None() -> "missing";
-        };
-    }
+final class OptionCompare {
+  static String zazrDescribe(String raw){
+    var o = raw==null? Optional.<String>empty(): Optional.of(raw);
+    return o.map(s -> "zazr-some:"+s).orElse("zazr-none");
+  }
+  static String vavrStyleDescribe(String raw){
+    // educational stand-in without requiring VAVR API in problem package
+    return raw==null? "vavr-none": "vavr-some:"+raw;
+  }
 }
 
 ```
 
 ### Stage 3 — Runnable main
 ```java
-package com.buildwithwaqar.patterns.functional.vavrcompare;
-
-import com.buildwithwaqar.patterns.functional.vavrcompare.VavrVsZazr;
-/** Problem: migrate Option describe from VAVR to Zazr pattern matching. */
-public final class UseCaseDemo {
-  public static void main(String[] a) {
-    System.out.println("=== VAVR vs Zazr problem ===");
-    System.out.println("vavr=" + VavrVsZazr.vavrDescribe(io.vavr.control.Option.some(7)));
-    System.out.println("zazr=" + VavrVsZazr.zazrDescribe(dev.zazr.control.Option.some(7)));
+package com.buildwithwaqar.patterns.functional.vavrcompare.problem;
+import java.util.*; import java.util.function.*;
+public final class ProblemDemo {
+  public static void main(String[] args) {
+    System.out.println("=== VAVR vs Zazr: same Option describe ===");
+    System.out.println("--- naive ---"); System.out.println(NaiveOpt.describe(null));
+System.out.println("--- compare ---");
+System.out.println(OptionCompare.zazrDescribe("x"));
+System.out.println(OptionCompare.vavrStyleDescribe("x"));
+System.out.println(OptionCompare.zazrDescribe(null));
+System.out.println(OptionCompare.vavrStyleDescribe(null));
   }
 }
 
@@ -99,9 +95,14 @@ public final class UseCaseDemo {
 Narrate each line. Do not invent numbers on camera.
 
 ```text
-=== VAVR vs Zazr problem ===
-vavr=got 7
-zazr=got 7
+=== VAVR vs Zazr: same Option describe ===
+--- naive ---
+none
+--- compare ---
+zazr-some:x
+vavr-some:x
+zazr-none
+vavr-none
 ```
 
 Trace: match each printed line to a stage above. Fork the repo, set `JAVA_HOME` to JDK 25,
@@ -183,79 +184,3 @@ Java 25 / Zazr take, then slow down for when NOT to use VAVR vs Zazr.
 **[10:30]** *(interview + recap)*
 Two interview questions, three takeaways, link the GitHub episode folder. I am Waqar —
 see you in the next one.
-
-
-## Studio Notes for Build with Waqar
-When you record this episode, keep the energy practical. Start with the product pain, not the pattern name. Viewers stay when they feel the bug before they learn the label. In CapCut, overlay the slide number in the corner and cut idle IDE scrolling. If a code block is long, zoom CapCut to the highlighted lines rather than shrinking the font on the slide. Re-run the Demo live once if your machine allows — viewers trust a terminal more than a screenshot. Finally, end with a single actionable challenge: ask them to open the repo, run the Demo, and mutate one assertion in the test to see the failure. That turns passive watching into practice.
-
-### CapCut Checklist
-- Import `slides.pdf` or the PNG sequence at 1920×1080.
-- Align voiceover to the timestamps in the Video Script section.
-- Keep lower-thirds short: pattern name + one-line intent.
-- Add a pinned comment with the GitHub path to this episode folder.
-
-### Common Recording Mistakes
-- Reading UML without showing running output.
-- Skipping the "when NOT to use" section — that is what seniors listen for.
-- Rushing trade-offs. Slow down here; it is interview gold.
-- Forgetting to mention the test class name so learners can `mvn -Dtest=... test`.
-
-
-## Practice Drill (Do This After Watching)
-1. Clone `waqarys/java-design-patterns` and set `JAVA_HOME` to JDK 25.
-2. Run the episode Demo (`mvn -q exec:java -Dexec.mainClass=...` or `java -cp ... Demo`).
-3. Break the implementation on purpose; watch the test fail; restore it.
-4. Write one alternative design in a scratch branch and compare readability.
-5. Explain the pattern out loud in sixty seconds without looking at notes — that is your introspective for interviews.
-
-## Glossary
-- **Force:** the design pressure (extensibility, coupling, allocation, testability) that makes a pattern worth considering.
-- **Role:** a participant name from the pattern (Context, Strategy, Client, Creator, Product).
-- **Smell:** a code signal that a force is unresolved (telescoping constructors, instanceof forests, god classes).
-- **Modernization:** the Java 25 / Zazr encoding that preserves the force-resolution with less ceremony.
-
-
-## Problem Deep Dive
-The concrete problem for this episode is: **Same Option describe in both libraries**.
-
-Walk the naive path slowly on camera. Ask viewers what breaks first when requirements change —
-a new file to load, a new payment currency, a new saga step, a new illegal state transition.
-That question is the force. The pattern is just the name we give the force once we have felt it.
-
-Then open the solution types and show the boundary: what the rest of the app is allowed to
-depend on, and what stays hidden. Highlight how the runnable main prints a meaningful trace —
-happy path and at least one failure path — so CapCut can cut between IDE and terminal without
-inventing numbers.
-
-Finally, spend a full minute on trade-offs. Seniors stay for the "when not". Juniors need the
-happy path. Your job on Build with Waqar is both.
-
-
-## Studio Notes for Build with Waqar
-When you record this episode, keep the energy practical. Start with the product pain, not the pattern name. Viewers stay when they feel the bug before they learn the label. In CapCut, overlay the slide number in the corner and cut idle IDE scrolling. If a code block is long, zoom CapCut to the highlighted lines rather than shrinking the font on the slide. Re-run the Demo live once if your machine allows — viewers trust a terminal more than a screenshot. Finally, end with a single actionable challenge: ask them to open the repo, run the Demo, and mutate one assertion in the test to see the failure. That turns passive watching into practice.
-
-### CapCut Checklist
-- Import `slides.pdf` or the PNG sequence at 1920×1080.
-- Align voiceover to the timestamps in the Video Script section.
-- Keep lower-thirds short: pattern name + one-line intent.
-- Add a pinned comment with the GitHub path to this episode folder.
-
-### Common Recording Mistakes
-- Reading UML without showing running output.
-- Skipping the "when NOT to use" section — that is what seniors listen for.
-- Rushing trade-offs. Slow down here; it is interview gold.
-- Forgetting to mention the test class name so learners can `mvn -Dtest=... test`.
-
-
-## Practice Drill (Do This After Watching)
-1. Clone `waqarys/java-design-patterns` and set `JAVA_HOME` to JDK 25.
-2. Run the episode Demo (`mvn -q exec:java -Dexec.mainClass=...` or `java -cp ... Demo`).
-3. Break the implementation on purpose; watch the test fail; restore it.
-4. Write one alternative design in a scratch branch and compare readability.
-5. Explain the pattern out loud in sixty seconds without looking at notes — that is your introspective for interviews.
-
-## Glossary
-- **Force:** the design pressure (extensibility, coupling, allocation, testability) that makes a pattern worth considering.
-- **Role:** a participant name from the pattern (Context, Strategy, Client, Creator, Product).
-- **Smell:** a code signal that a force is unresolved (telescoping constructors, instanceof forests, god classes).
-- **Modernization:** the Java 25 / Zazr encoding that preserves the force-resolution with less ceremony.
