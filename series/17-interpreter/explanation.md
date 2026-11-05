@@ -1,27 +1,24 @@
 # Interpreter
 
-**Season:** 3 · Behavioral · **Category:** GoF · **Level:** Intermediate · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar
+**Season:** 3 · Behavioral · **Category:** GoF · **Level:** Intermediate · **Runtime:** ~10–12 min · **Channel:** Build with Waqar
 
 ## Problem
 **Pricing-rule DSL: base + percent + flat discounts**
 
-This episode is built around that concrete problem — not a shared StreamForge framing.
-You will see a real naive implementation that hurts, a full pattern-based solution, a
-runnable main with meaningful stdout, and JUnit failure-path coverage where the pattern lives.
+Key types: `PricingDsl`, `Rule`, `Base`, `PercentOff`, `FlatOff`, `Stack`.
 
 ## Hook
-Welcome back to **Build with Waqar**. Today we earn **Interpreter** by solving one problem well:
-*Pricing-rule DSL: base + percent + flat discounts*. By the end you will have walked naive pain → pattern refactor → real JDK 25
-stdout → trade-offs, with CapCut slides and a spoken script.
+Picture this: you are mid-demo and «Pricing-rule DSL: base + percent + flat discounts» blows up the naive way — you see `caught=unknown sku NOPE`. That is the pain. In the next ten minutes we introduce **Interpreter** with real types (PricingDsl, Rule, Base), a runnable `ProblemDemo`, and the failure path locked in by tests. No abstract UML first — problem first.
 
 ## Intent
-Interpreter exists because this force kept showing up: pricing-rule dsl: base + percent + flat discounts. Name the force, sketch
-the roles, and — critically — know when you would refuse the pattern.
+Evaluate a pricing-rule DSL (base + percent + flat) as an expression tree.
+
+**When to use:** the force behind «Pricing-rule DSL: base + percent + flat discounts» shows up more than once and a simpler language feature does not erase it.
+
+**When to refuse:** you are pattern-collecting, the boundary is still unclear, or the team cannot yet test the abstraction (compensations, half-open recovery, interpreters).
 
 ## The Pain — Naive Design
-Before the pattern, teams usually thread details everywhere, leak resources on partial
-failure, or couple call sites to a third-party shape. That feels fast on day one and expensive
-on day thirty.
+Naive: stringly if/else discount codes — untestable composition.
 
 ```java
 package com.buildwithwaqar.patterns.gof.behavioral.interpreter.problem;
@@ -41,24 +38,25 @@ public final class NaivePricing {
 
 ```
 
-Call out the smell on camera: duplicated envelopes, missing compensations, parameter drilling,
-illegal transitions, or null at the boundary.
+On camera, point at the smell: missing compensations, leaked XML, null at the boundary,
+illegal transitions, or hard-wired `System.out` that you cannot assert.
 
 ## Pattern Structure
 ```mermaid
 flowchart LR
-  Client --> Pattern
-  Pattern --> Collaborators
+  PercentOff[PercentOff] --> Base[Base]
+  FlatOff[FlatOff] --> PercentOff[PercentOff]
+  Stack[Stack] --> Rule[Rule]
 ```
 
-Roles matter more than class counts. The diagram slide draws the collaboration for **this**
-problem so viewers can point at boxes while you type.
+These roles are for **«Pricing-rule DSL: base + percent + flat discounts»** — not a generic Client→Pattern poster. Keep them on screen
+while you type the solution.
 
 ## Refactor to the Pattern
 
 ### Stage 1 — Name the boundary
-Identify the client-facing API the rest of the app should depend on. Hide the incompatible
-or distributed details behind it.
+Introduce the client-facing API the rest of the app should depend on. Hide the incompatible or
+distributed details behind it. For this episode that boundary is what makes «Pricing-rule DSL: base + percent + flat discounts» testable.
 
 ### Stage 2 — Encode the solution
 ```java
@@ -125,7 +123,7 @@ public final class ProblemDemo {
 
 ```
 
-## Hand-Traced Walkthrough (Verified on JDK 25)
+## Runnable Output (Verified on JDK 25)
 Narrate each line. Do not invent numbers on camera.
 
 ```text
@@ -138,82 +136,83 @@ cart=2100
 caught=unknown sku NOPE
 ```
 
-Trace: match each printed line to a stage above. Fork the repo, set `JAVA_HOME` to JDK 25,
-and re-run the same main class to verify.
+Happy-path cue: `1600`.
+Failure-path cue: `caught=unknown sku NOPE`.
+Fork the repo, set `JAVA_HOME` to JDK 25, and re-run the same `ProblemDemo` to verify.
 
 ## Modern Java 25 / Zazr Variant
-Prefer records for results, sealed types for closed variants, pattern matching for exhaustive
-handling, virtual threads for blocking fan-out, and Zazr for Option/Either/Try/Validation
-when the force is about absence or accumulated errors. Keep the classic shape when interview
-literacy matters.
+This solution already leans on **sealed types** — keep the exhaustive `switch`. **Records** carry the immutable results (`StepResult`, DTOs) with almost no boilerplate.
 
 ## Trade-offs
-- **Clarity vs ceremony:** five types for a two-line problem is a fail.
-- **Testability:** inject collaborators; for Saga, inject failure at each step.
-- **Distributed reality:** teaching demos omit metrics, poison pills, and multi-region clocks.
-- **Refuse the pattern** when a sealed switch, a function value, or a simpler library call
-  already erases the force.
-
-## When to Use / When Not to Use
-**Use when** the problem above shows up more than once and a simpler language feature does
-not erase it.
-
-**Avoid when** you are pattern-collecting, when the boundary is still unclear, or when the
-team cannot yet test the abstraction (especially compensations and half-open recovery).
-
-## Related Patterns
-Contrast Interpreter with its usual twin (Adapter vs Facade, Saga vs Outbox, Reader vs DI/Cake,
-State vs Strategy, Free vs Tagless). Say the distinguishing sentence out loud.
+- **Clarity vs ceremony:** extra types for «Pricing-rule DSL: base + percent + flat discounts» only pay off when the force repeats.
+- **Testability:** inject collaborators; assert the failure path, not only the happy path.
+- **Distributed / concurrent reality:** demos omit metrics, backpressure, and multi-region clocks.
+- **Refuse Interpreter** when a sealed switch, a function value, or a simpler library call already erases the force.
+- **Neighbor:** Visitor — Interpreter evaluates a grammar; Visitor adds operations across an AST.
 
 ## Interview Q&A
 **Q1. What concrete problem does Interpreter solve here?**
 A: Pricing-rule DSL: base + percent + flat discounts.
 
 **Q2. What does the naive design get wrong?**
-A: Point at the naive code smells from this episode.
+A: Naive: stringly if/else discount codes — untestable composition.
 
-**Q3. How do you test failure paths?**
-A: Inject a failing collaborator (Saga step, SOAP fault, missing file) and assert the
-observable outcome — compensation order, FAILED result, or thrown IllegalStateException.
+**Q3. How do you test the failure path?**
+A: Inject the fault and assert the observable outcome — e.g. `caught=unknown sku NOPE`.
 
 **Q4. When is Interpreter the wrong tool?**
-A: Give a smaller counterexample where a function, Option, or facade is enough.
+A: When a smaller language feature erases the force, or when you really needed Visitor.
 
-**Q5. How does Java 25 change the encoding?**
-A: Records, sealed types, virtual threads, Zazr control types — pick what applies.
 
 ## Key Takeaways
 - Lead with the problem: Pricing-rule DSL: base + percent + flat discounts.
-- Show naive pain before naming Interpreter.
-- Run the Demo; trust JDK 25 stdout.
-- Teach when NOT to use it.
+- Show naive pain (`caught=unknown sku NOPE`) before naming Interpreter.
+- Run the Demo; trust JDK 25 stdout (`1600`).
+- Teach when NOT to use Interpreter.
 
 ## Video Script (≈10–12 minutes)
 Record for **Build with Waqar**. OBS for capture, CapCut for assembly. Import `slides.pdf`.
+Facecam: full-screen for the hook, framed PiP over code slides.
 
-**[0:00]** *(slide 01 title)*
-Hey everyone, welcome back to Build with Waqar. Today we solve a real problem with Interpreter:
-Pricing-rule DSL: base + percent + flat discounts.
+**[0:00]** *(slide 01 title + talking head)*
+Hey everyone — today we solve one concrete problem with **Interpreter**:
+*Pricing-rule DSL: base + percent + flat discounts*. Keep these names in your head: PricingDsl, Rule, Base, PercentOff.
 
-**[0:40]** *(slide 02–03 problem)*
-I am not starting with a definition. Here is the product pain. Keep these names — they
-reappear in the Demo output.
+**[0:45]** *(problem + hook slides)*
+I am not starting with a textbook definition. Here is the product pain. By the end you will have
+seen the naive leak, the pattern boundary, and real JDK 25 stdout.
 
 **[2:00]** *(naive code)*
-IDE time. This is the naive version. Call out the smell.
+IDE time. This is the naive version. Call out the smell — that is what Interpreter exists to erase.
 
-**[3:30]** *(diagram)*
-Structure for **this** problem. Point at each role.
+**[3:30]** *(structure diagram)*
+Roles for **this** problem, not a generic UML poster. Point at each box while you talk.
 
-**[4:30]** *(refactor stages)*
-Stage by stage into the pattern. Highlight tests and failure injection.
+**[4:30]** *(refactor / solution code)*
+Stage the solution. Highlight failure injection and the tests that lock it in.
 
 **[7:00]** *(walkthrough output)*
-Real stdout from JDK 25. Line by line. No fake numbers.
+Real stdout. Happy path cue: `1600`.
+Failure cue: `caught=unknown sku NOPE`.
+No invented numbers on camera.
 
-**[8:30]** *(modern + trade-offs)*
-Java 25 / Zazr take, then slow down for when NOT to use Interpreter.
+**[8:30]** *(modern Java 25 / Zazr + trade-offs)*
+Show the modernization, then slow down for when NOT to use Interpreter. That is what seniors listen for.
 
-**[10:30]** *(interview + recap)*
-Two interview questions, three takeaways, link the GitHub episode folder. I am Waqar —
-see you in the next one.
+**[10:30]** *(Q&A + recap + outro)*
+Two interview questions, three takeaways, link the GitHub episode folder. I am Waqar — see you in the next one.
+
+
+## Walkthrough Beats (Say These Out Loud)
+1. **Setup:** open `series/17-interpreter/` and `run-output.txt` beside the IDE.
+2. **Naive:** reproduce the pain until you can point at `caught=unknown sku NOPE`.
+3. **Structure:** on the diagram, trace `PercentOff` → `Base`, `FlatOff` → `PercentOff`, `Stack` → `Rule`.
+4. **Refactor:** encode the boundary, then run `ProblemDemo` — match `1600`.
+5. **Break it:** flip one `ProblemTest` assertion, watch red, restore it.
+6. **Refuse:** Contrast with **Visitor**: Interpreter evaluates a grammar; Visitor adds operations across an AST.
+
+## Practice Drill
+- Clone `waqarys/java-design-patterns`, set `JAVA_HOME` to JDK 25.
+- Run the episode `ProblemDemo` (see `EP_MAIN` in `tools/enrich/build_problems.py`).
+- Mutate one collaborator to fail; confirm the observable compensation / error path.
+- Explain Interpreter for «Pricing-rule DSL: base + percent + flat discounts» in sixty seconds without notes.

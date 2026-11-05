@@ -1,27 +1,24 @@
 # Future & Promise
 
-**Season:** 5 · Concurrency · **Category:** Concurrency · **Level:** Intermediate · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar
+**Season:** 5 · Concurrency · **Category:** Concurrency · **Level:** Intermediate · **Runtime:** ~10–12 min · **Channel:** Build with Waqar
 
 ## Problem
 **Async thumbnail then compose URL**
 
-This episode is built around that concrete problem — not a shared StreamForge framing.
-You will see a real naive implementation that hurts, a full pattern-based solution, a
-runnable main with meaningful stdout, and JUnit failure-path coverage where the pattern lives.
+Key types: `ThumbService`.
 
 ## Hook
-Welcome back to **Build with Waqar**. Today we earn **Future/Promise** by solving one problem well:
-*Async thumbnail then compose URL*. By the end you will have walked naive pain → pattern refactor → real JDK 25
-stdout → trade-offs, with CapCut slides and a spoken script.
+Picture this: you are mid-demo and «Async thumbnail then compose URL» blows up the naive way — you see `caught=id`. That is the pain. In the next ten minutes we introduce **Future/Promise** with real types (ThumbService), a runnable `ProblemDemo`, and the failure path locked in by tests. No abstract UML first — problem first.
 
 ## Intent
-Future/Promise exists because this force kept showing up: async thumbnail then compose url. Name the force, sketch
-the roles, and — critically — know when you would refuse the pattern.
+Use **Future/Promise** to cleanly solve: Async thumbnail then compose URL.
+
+**When to use:** the force behind «Async thumbnail then compose URL» shows up more than once and a simpler language feature does not erase it.
+
+**When to refuse:** you are pattern-collecting, the boundary is still unclear, or the team cannot yet test the abstraction (compensations, half-open recovery, interpreters).
 
 ## The Pain — Naive Design
-Before the pattern, teams usually thread details everywhere, leak resources on partial
-failure, or couple call sites to a third-party shape. That feels fast on day one and expensive
-on day thirty.
+Naive version fails to cleanly solve: Async thumbnail then compose URL
 
 ```java
 package com.buildwithwaqar.patterns.concurrency.futurepromise.problem;
@@ -34,24 +31,25 @@ public final class NaiveThumb {
 
 ```
 
-Call out the smell on camera: duplicated envelopes, missing compensations, parameter drilling,
-illegal transitions, or null at the boundary.
+On camera, point at the smell: missing compensations, leaked XML, null at the boundary,
+illegal transitions, or hard-wired `System.out` that you cannot assert.
 
 ## Pattern Structure
 ```mermaid
 flowchart LR
-  Client --> Pattern
-  Pattern --> Collaborators
+  Client[Client] --> Async[Async]
+  Async[Async] --> thumbnail[thumbnail]
+  thumbnail[thumbnail] --> Result[Result]
 ```
 
-Roles matter more than class counts. The diagram slide draws the collaboration for **this**
-problem so viewers can point at boxes while you type.
+These roles are for **«Async thumbnail then compose URL»** — not a generic Client→Pattern poster. Keep them on screen
+while you type the solution.
 
 ## Refactor to the Pattern
 
 ### Stage 1 — Name the boundary
-Identify the client-facing API the rest of the app should depend on. Hide the incompatible
-or distributed details behind it.
+Introduce the client-facing API the rest of the app should depend on. Hide the incompatible or
+distributed details behind it. For this episode that boundary is what makes «Async thumbnail then compose URL» testable.
 
 ### Stage 2 — Encode the solution
 ```java
@@ -92,7 +90,7 @@ try { s.render("").join(); } catch(CompletionException e){ System.out.println("c
 
 ```
 
-## Hand-Traced Walkthrough (Verified on JDK 25)
+## Runnable Output (Verified on JDK 25)
 Narrate each line. Do not invent numbers on camera.
 
 ```text
@@ -104,82 +102,83 @@ https://cdn/vid.jpg
 caught=id
 ```
 
-Trace: match each printed line to a stage above. Fork the repo, set `JAVA_HOME` to JDK 25,
-and re-run the same main class to verify.
+Happy-path cue: `https://cdn/a.jpg`.
+Failure-path cue: `caught=id`.
+Fork the repo, set `JAVA_HOME` to JDK 25, and re-run the same `ProblemDemo` to verify.
 
 ## Modern Java 25 / Zazr Variant
-Prefer records for results, sealed types for closed variants, pattern matching for exhaustive
-handling, virtual threads for blocking fan-out, and Zazr for Option/Either/Try/Validation
-when the force is about absence or accumulated errors. Keep the classic shape when interview
-literacy matters.
+`CompletableFuture` composition covers the async variant; prefer virtual threads when the work is blocking I/O.
 
 ## Trade-offs
-- **Clarity vs ceremony:** five types for a two-line problem is a fail.
-- **Testability:** inject collaborators; for Saga, inject failure at each step.
-- **Distributed reality:** teaching demos omit metrics, poison pills, and multi-region clocks.
-- **Refuse the pattern** when a sealed switch, a function value, or a simpler library call
-  already erases the force.
-
-## When to Use / When Not to Use
-**Use when** the problem above shows up more than once and a simpler language feature does
-not erase it.
-
-**Avoid when** you are pattern-collecting, when the boundary is still unclear, or when the
-team cannot yet test the abstraction (especially compensations and half-open recovery).
-
-## Related Patterns
-Contrast Future/Promise with its usual twin (Adapter vs Facade, Saga vs Outbox, Reader vs DI/Cake,
-State vs Strategy, Free vs Tagless). Say the distinguishing sentence out loud.
+- **Clarity vs ceremony:** extra types for «Async thumbnail then compose URL» only pay off when the force repeats.
+- **Testability:** inject collaborators; assert the failure path, not only the happy path.
+- **Distributed / concurrent reality:** demos omit metrics, backpressure, and multi-region clocks.
+- **Refuse Future/Promise** when a sealed switch, a function value, or a simpler library call already erases the force.
+- **Neighbor:** Virtual Threads — Futures compose async results; VTs make blocking code scale.
 
 ## Interview Q&A
 **Q1. What concrete problem does Future/Promise solve here?**
 A: Async thumbnail then compose URL.
 
 **Q2. What does the naive design get wrong?**
-A: Point at the naive code smells from this episode.
+A: Naive version fails to cleanly solve: Async thumbnail then compose URL
 
-**Q3. How do you test failure paths?**
-A: Inject a failing collaborator (Saga step, SOAP fault, missing file) and assert the
-observable outcome — compensation order, FAILED result, or thrown IllegalStateException.
+**Q3. How do you test the failure path?**
+A: Inject the fault and assert the observable outcome — e.g. `caught=id`.
 
 **Q4. When is Future/Promise the wrong tool?**
-A: Give a smaller counterexample where a function, Option, or facade is enough.
+A: When a smaller language feature erases the force, or when you really needed Virtual Threads.
 
-**Q5. How does Java 25 change the encoding?**
-A: Records, sealed types, virtual threads, Zazr control types — pick what applies.
 
 ## Key Takeaways
 - Lead with the problem: Async thumbnail then compose URL.
-- Show naive pain before naming Future/Promise.
-- Run the Demo; trust JDK 25 stdout.
-- Teach when NOT to use it.
+- Show naive pain (`caught=id`) before naming Future/Promise.
+- Run the Demo; trust JDK 25 stdout (`https://cdn/a.jpg`).
+- Teach when NOT to use Future/Promise.
 
 ## Video Script (≈10–12 minutes)
 Record for **Build with Waqar**. OBS for capture, CapCut for assembly. Import `slides.pdf`.
+Facecam: full-screen for the hook, framed PiP over code slides.
 
-**[0:00]** *(slide 01 title)*
-Hey everyone, welcome back to Build with Waqar. Today we solve a real problem with Future/Promise:
-Async thumbnail then compose URL.
+**[0:00]** *(slide 01 title + talking head)*
+Hey everyone — today we solve one concrete problem with **Future/Promise**:
+*Async thumbnail then compose URL*. Keep these names in your head: ThumbService.
 
-**[0:40]** *(slide 02–03 problem)*
-I am not starting with a definition. Here is the product pain. Keep these names — they
-reappear in the Demo output.
+**[0:45]** *(problem + hook slides)*
+I am not starting with a textbook definition. Here is the product pain. By the end you will have
+seen the naive leak, the pattern boundary, and real JDK 25 stdout.
 
 **[2:00]** *(naive code)*
-IDE time. This is the naive version. Call out the smell.
+IDE time. This is the naive version. Call out the smell — that is what Future/Promise exists to erase.
 
-**[3:30]** *(diagram)*
-Structure for **this** problem. Point at each role.
+**[3:30]** *(structure diagram)*
+Roles for **this** problem, not a generic UML poster. Point at each box while you talk.
 
-**[4:30]** *(refactor stages)*
-Stage by stage into the pattern. Highlight tests and failure injection.
+**[4:30]** *(refactor / solution code)*
+Stage the solution. Highlight failure injection and the tests that lock it in.
 
 **[7:00]** *(walkthrough output)*
-Real stdout from JDK 25. Line by line. No fake numbers.
+Real stdout. Happy path cue: `https://cdn/a.jpg`.
+Failure cue: `caught=id`.
+No invented numbers on camera.
 
-**[8:30]** *(modern + trade-offs)*
-Java 25 / Zazr take, then slow down for when NOT to use Future/Promise.
+**[8:30]** *(modern Java 25 / Zazr + trade-offs)*
+Show the modernization, then slow down for when NOT to use Future/Promise. That is what seniors listen for.
 
-**[10:30]** *(interview + recap)*
-Two interview questions, three takeaways, link the GitHub episode folder. I am Waqar —
-see you in the next one.
+**[10:30]** *(Q&A + recap + outro)*
+Two interview questions, three takeaways, link the GitHub episode folder. I am Waqar — see you in the next one.
+
+
+## Walkthrough Beats (Say These Out Loud)
+1. **Setup:** open `series/38-future-promise/` and `run-output.txt` beside the IDE.
+2. **Naive:** reproduce the pain until you can point at `caught=id`.
+3. **Structure:** on the diagram, trace `Client` → `Async`, `Async` → `thumbnail`, `thumbnail` → `Result`.
+4. **Refactor:** encode the boundary, then run `ProblemDemo` — match `https://cdn/a.jpg`.
+5. **Break it:** flip one `ProblemTest` assertion, watch red, restore it.
+6. **Refuse:** Contrast with **Virtual Threads**: Futures compose async results; VTs make blocking code scale.
+
+## Practice Drill
+- Clone `waqarys/java-design-patterns`, set `JAVA_HOME` to JDK 25.
+- Run the episode `ProblemDemo` (see `EP_MAIN` in `tools/enrich/build_problems.py`).
+- Mutate one collaborator to fail; confirm the observable compensation / error path.
+- Explain Future/Promise for «Async thumbnail then compose URL» in sixty seconds without notes.

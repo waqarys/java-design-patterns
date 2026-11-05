@@ -1,27 +1,24 @@
 # Builder
 
-**Season:** 1 · Creational · **Category:** GoF · **Level:** Beginner · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar
+**Season:** 1 · Creational · **Category:** GoF · **Level:** Beginner · **Runtime:** ~10–12 min · **Channel:** Build with Waqar
 
 ## Problem
 **Build immutable HTTP requests with many optionals**
 
-This episode is built around that concrete problem — not a shared StreamForge framing.
-You will see a real naive implementation that hurts, a full pattern-based solution, a
-runnable main with meaningful stdout, and JUnit failure-path coverage where the pattern lives.
+Key types: `HttpRequest`, `Builder`.
 
 ## Hook
-Welcome back to **Build with Waqar**. Today we earn **Builder** by solving one problem well:
-*Build immutable HTTP requests with many optionals*. By the end you will have walked naive pain → pattern refactor → real JDK 25
-stdout → trade-offs, with CapCut slides and a spoken script.
+Picture this: you are mid-demo and «Build immutable HTTP requests with many optionals» blows up the naive way — you see `caught=url required`. That is the pain. In the next ten minutes we introduce **Builder** with real types (HttpRequest, Builder), a runnable `ProblemDemo`, and the failure path locked in by tests. No abstract UML first — problem first.
 
 ## Intent
-Builder exists because this force kept showing up: build immutable http requests with many optionals. Name the force, sketch
-the roles, and — critically — know when you would refuse the pattern.
+Use **Builder** to cleanly solve: Build immutable HTTP requests with many optionals.
+
+**When to use:** the force behind «Build immutable HTTP requests with many optionals» shows up more than once and a simpler language feature does not erase it.
+
+**When to refuse:** you are pattern-collecting, the boundary is still unclear, or the team cannot yet test the abstraction (compensations, half-open recovery, interpreters).
 
 ## The Pain — Naive Design
-Before the pattern, teams usually thread details everywhere, leak resources on partial
-failure, or couple call sites to a third-party shape. That feels fast on day one and expensive
-on day thirty.
+Naive version fails to cleanly solve: Build immutable HTTP requests with many optionals
 
 ```java
 package com.buildwithwaqar.patterns.gof.creational.builder.problem;
@@ -37,24 +34,25 @@ public final class NaiveHttp {
 
 ```
 
-Call out the smell on camera: duplicated envelopes, missing compensations, parameter drilling,
-illegal transitions, or null at the boundary.
+On camera, point at the smell: missing compensations, leaked XML, null at the boundary,
+illegal transitions, or hard-wired `System.out` that you cannot assert.
 
 ## Pattern Structure
 ```mermaid
 flowchart LR
-  Client --> Pattern
-  Pattern --> Collaborators
+  Client[Client] --> Build[Build]
+  Build[Build] --> immutable[immutable]
+  immutable[immutable] --> Result[Result]
 ```
 
-Roles matter more than class counts. The diagram slide draws the collaboration for **this**
-problem so viewers can point at boxes while you type.
+These roles are for **«Build immutable HTTP requests with many optionals»** — not a generic Client→Pattern poster. Keep them on screen
+while you type the solution.
 
 ## Refactor to the Pattern
 
 ### Stage 1 — Name the boundary
-Identify the client-facing API the rest of the app should depend on. Hide the incompatible
-or distributed details behind it.
+Introduce the client-facing API the rest of the app should depend on. Hide the incompatible or
+distributed details behind it. For this episode that boundary is what makes «Build immutable HTTP requests with many optionals» testable.
 
 ### Stage 2 — Encode the solution
 ```java
@@ -100,7 +98,7 @@ try { new HttpRequest.Builder().method("GET").build(); } catch (IllegalArgumentE
 
 ```
 
-## Hand-Traced Walkthrough (Verified on JDK 25)
+## Runnable Output (Verified on JDK 25)
 Narrate each line. Do not invent numbers on camera.
 
 ```text
@@ -112,82 +110,83 @@ POST /v1/orders body={} auth=true
 caught=url required
 ```
 
-Trace: match each printed line to a stage above. Fork the repo, set `JAVA_HOME` to JDK 25,
-and re-run the same main class to verify.
+Happy-path cue: `POST /x body={} auth=true`.
+Failure-path cue: `caught=url required`.
+Fork the repo, set `JAVA_HOME` to JDK 25, and re-run the same `ProblemDemo` to verify.
 
 ## Modern Java 25 / Zazr Variant
-Prefer records for results, sealed types for closed variants, pattern matching for exhaustive
-handling, virtual threads for blocking fan-out, and Zazr for Option/Either/Try/Validation
-when the force is about absence or accumulated errors. Keep the classic shape when interview
-literacy matters.
+For **Builder**, prefer records for results, sealed types for closed variants, and Zazr `Option`/`Either`/`Validation` when the force is absence or accumulated errors. Keep the classic shape when interview literacy matters.
 
 ## Trade-offs
-- **Clarity vs ceremony:** five types for a two-line problem is a fail.
-- **Testability:** inject collaborators; for Saga, inject failure at each step.
-- **Distributed reality:** teaching demos omit metrics, poison pills, and multi-region clocks.
-- **Refuse the pattern** when a sealed switch, a function value, or a simpler library call
-  already erases the force.
-
-## When to Use / When Not to Use
-**Use when** the problem above shows up more than once and a simpler language feature does
-not erase it.
-
-**Avoid when** you are pattern-collecting, when the boundary is still unclear, or when the
-team cannot yet test the abstraction (especially compensations and half-open recovery).
-
-## Related Patterns
-Contrast Builder with its usual twin (Adapter vs Facade, Saga vs Outbox, Reader vs DI/Cake,
-State vs Strategy, Free vs Tagless). Say the distinguishing sentence out loud.
+- **Clarity vs ceremony:** extra types for «Build immutable HTTP requests with many optionals» only pay off when the force repeats.
+- **Testability:** inject collaborators; assert the failure path, not only the happy path.
+- **Distributed / concurrent reality:** demos omit metrics, backpressure, and multi-region clocks.
+- **Refuse Builder** when a sealed switch, a function value, or a simpler library call already erases the force.
+- **Neighbor:** Factory Method — Builder is for many optionals / immutability; Factory Method for subtype choice.
 
 ## Interview Q&A
 **Q1. What concrete problem does Builder solve here?**
 A: Build immutable HTTP requests with many optionals.
 
 **Q2. What does the naive design get wrong?**
-A: Point at the naive code smells from this episode.
+A: Naive version fails to cleanly solve: Build immutable HTTP requests with many optionals
 
-**Q3. How do you test failure paths?**
-A: Inject a failing collaborator (Saga step, SOAP fault, missing file) and assert the
-observable outcome — compensation order, FAILED result, or thrown IllegalStateException.
+**Q3. How do you test the failure path?**
+A: Inject the fault and assert the observable outcome — e.g. `caught=url required`.
 
 **Q4. When is Builder the wrong tool?**
-A: Give a smaller counterexample where a function, Option, or facade is enough.
+A: When a smaller language feature erases the force, or when you really needed Factory Method.
 
-**Q5. How does Java 25 change the encoding?**
-A: Records, sealed types, virtual threads, Zazr control types — pick what applies.
 
 ## Key Takeaways
 - Lead with the problem: Build immutable HTTP requests with many optionals.
-- Show naive pain before naming Builder.
-- Run the Demo; trust JDK 25 stdout.
-- Teach when NOT to use it.
+- Show naive pain (`caught=url required`) before naming Builder.
+- Run the Demo; trust JDK 25 stdout (`POST /x body={} auth=true`).
+- Teach when NOT to use Builder.
 
 ## Video Script (≈10–12 minutes)
 Record for **Build with Waqar**. OBS for capture, CapCut for assembly. Import `slides.pdf`.
+Facecam: full-screen for the hook, framed PiP over code slides.
 
-**[0:00]** *(slide 01 title)*
-Hey everyone, welcome back to Build with Waqar. Today we solve a real problem with Builder:
-Build immutable HTTP requests with many optionals.
+**[0:00]** *(slide 01 title + talking head)*
+Hey everyone — today we solve one concrete problem with **Builder**:
+*Build immutable HTTP requests with many optionals*. Keep these names in your head: HttpRequest, Builder.
 
-**[0:40]** *(slide 02–03 problem)*
-I am not starting with a definition. Here is the product pain. Keep these names — they
-reappear in the Demo output.
+**[0:45]** *(problem + hook slides)*
+I am not starting with a textbook definition. Here is the product pain. By the end you will have
+seen the naive leak, the pattern boundary, and real JDK 25 stdout.
 
 **[2:00]** *(naive code)*
-IDE time. This is the naive version. Call out the smell.
+IDE time. This is the naive version. Call out the smell — that is what Builder exists to erase.
 
-**[3:30]** *(diagram)*
-Structure for **this** problem. Point at each role.
+**[3:30]** *(structure diagram)*
+Roles for **this** problem, not a generic UML poster. Point at each box while you talk.
 
-**[4:30]** *(refactor stages)*
-Stage by stage into the pattern. Highlight tests and failure injection.
+**[4:30]** *(refactor / solution code)*
+Stage the solution. Highlight failure injection and the tests that lock it in.
 
 **[7:00]** *(walkthrough output)*
-Real stdout from JDK 25. Line by line. No fake numbers.
+Real stdout. Happy path cue: `POST /x body={} auth=true`.
+Failure cue: `caught=url required`.
+No invented numbers on camera.
 
-**[8:30]** *(modern + trade-offs)*
-Java 25 / Zazr take, then slow down for when NOT to use Builder.
+**[8:30]** *(modern Java 25 / Zazr + trade-offs)*
+Show the modernization, then slow down for when NOT to use Builder. That is what seniors listen for.
 
-**[10:30]** *(interview + recap)*
-Two interview questions, three takeaways, link the GitHub episode folder. I am Waqar —
-see you in the next one.
+**[10:30]** *(Q&A + recap + outro)*
+Two interview questions, three takeaways, link the GitHub episode folder. I am Waqar — see you in the next one.
+
+
+## Walkthrough Beats (Say These Out Loud)
+1. **Setup:** open `series/06-builder/` and `run-output.txt` beside the IDE.
+2. **Naive:** reproduce the pain until you can point at `caught=url required`.
+3. **Structure:** on the diagram, trace `Client` → `Build`, `Build` → `immutable`, `immutable` → `Result`.
+4. **Refactor:** encode the boundary, then run `ProblemDemo` — match `POST /x body={} auth=true`.
+5. **Break it:** flip one `ProblemTest` assertion, watch red, restore it.
+6. **Refuse:** Contrast with **Factory Method**: Builder is for many optionals / immutability; Factory Method for subtype choice.
+
+## Practice Drill
+- Clone `waqarys/java-design-patterns`, set `JAVA_HOME` to JDK 25.
+- Run the episode `ProblemDemo` (see `EP_MAIN` in `tools/enrich/build_problems.py`).
+- Mutate one collaborator to fail; confirm the observable compensation / error path.
+- Explain Builder for «Build immutable HTTP requests with many optionals» in sixty seconds without notes.

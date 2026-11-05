@@ -194,8 +194,16 @@ Show the modernization, then slow down for when NOT to use Circuit Breaker. That
 Two interview questions, three takeaways, link the GitHub episode folder. I am Waqar — see you in the next one.
 
 
-## Recording Notes (This Episode)
-- Open `series/30-circuit-breaker/` and keep `run-output.txt` beside the IDE while you narrate.
-- On the Structure slide, literally point at: `Client`→`Breaker`, `Breaker`→`RatesAPI`, `OPEN`→`half-open`.
-- Break one `ProblemTest` assertion live, show the red bar, restore it — that earns trust.
-- End screen: next episode in Season 4 plus the GitHub folder link.
+## Walkthrough Beats (Say These Out Loud)
+1. **Setup:** open `series/30-circuit-breaker/` and `run-output.txt` beside the IDE.
+2. **Naive:** reproduce the pain until you can point at `fail`.
+3. **Structure:** on the diagram, trace `Client` → `Breaker`, `Breaker` → `RatesAPI`, `OPEN` → `half-open`.
+4. **Refactor:** encode the boundary, then run `ProblemDemo` — match `fail`.
+5. **Break it:** flip one `ProblemTest` assertion, watch red, restore it.
+6. **Refuse:** Contrast with **Retry**: Breaker fails fast after a threshold; Retry keeps trying with backoff.
+
+## Practice Drill
+- Clone `waqarys/java-design-patterns`, set `JAVA_HOME` to JDK 25.
+- Run the episode `ProblemDemo` (see `EP_MAIN` in `tools/enrich/build_problems.py`).
+- Mutate one collaborator to fail; confirm the observable compensation / error path.
+- Explain Circuit Breaker for «Protect calls to flaky rates API» in sixty seconds without notes.

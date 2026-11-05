@@ -1,29 +1,26 @@
 # Zazr and VAVR Tour
 
-**Season:** 0 · Intro · **Category:** FP Libraries · **Level:** Beginner · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar
+**Season:** 0 · Intro · **Category:** Libraries · **Level:** Beginner · **Runtime:** ~10–12 min · **Channel:** Build with Waqar
 
 ## Problem
 **Replace null-config lookup with Option**
 
-This episode is built around that concrete problem — not a shared StreamForge framing.
-You will see a real naive implementation that hurts, a full pattern-based solution, a
-runnable main with meaningful stdout, and JUnit failure-path coverage where the pattern lives.
+Key types: `OptionCompare`.
 
-> Intro episode: light showcase of the problem theme rather than a full naive→pattern package. Later episodes go deep.
+> Intro episode: lighter showcase of the theme. Later episodes go full naive→pattern depth.
 
 ## Hook
-Welcome back to **Build with Waqar**. Today we earn **Zazr & VAVR** by solving one problem well:
-*Replace null-config lookup with Option*. By the end you will have walked naive pain → pattern refactor → real JDK 25
-stdout → trade-offs, with CapCut slides and a spoken script.
+Picture this: you are mid-demo and «Replace null-config lookup with Option» blows up the naive way — you see `none`. That is the pain. In the next ten minutes we introduce **Zazr & VAVR** with real types (OptionCompare), a runnable `ProblemDemo`, and the failure path locked in by tests. No abstract UML first — problem first.
 
 ## Intent
-Zazr & VAVR exists because this force kept showing up: replace null-config lookup with option. Name the force, sketch
-the roles, and — critically — know when you would refuse the pattern.
+Use **Zazr & VAVR** to cleanly solve: Replace null-config lookup with Option.
+
+**When to use:** the force behind «Replace null-config lookup with Option» shows up more than once and a simpler language feature does not erase it.
+
+**When to refuse:** you are pattern-collecting, the boundary is still unclear, or the team cannot yet test the abstraction (compensations, half-open recovery, interpreters).
 
 ## The Pain — Naive Design
-Before the pattern, teams usually thread details everywhere, leak resources on partial
-failure, or couple call sites to a third-party shape. That feels fast on day one and expensive
-on day thirty.
+Naive version fails to cleanly solve: Replace null-config lookup with Option
 
 ```java
 package com.buildwithwaqar.patterns.functional.vavrcompare.problem;
@@ -36,41 +33,66 @@ public final class NaiveOpt {
 
 ```
 
-Call out the smell on camera: duplicated envelopes, missing compensations, parameter drilling,
-illegal transitions, or null at the boundary.
+On camera, point at the smell: missing compensations, leaked XML, null at the boundary,
+illegal transitions, or hard-wired `System.out` that you cannot assert.
 
 ## Pattern Structure
 ```mermaid
 flowchart LR
-  Client --> Pattern
-  Pattern --> Collaborators
+  Client[Client] --> Replace[Replace]
+  Replace[Replace] --> null[null]
+  null[null] --> Result[Result]
 ```
 
-Roles matter more than class counts. The diagram slide draws the collaboration for **this**
-problem so viewers can point at boxes while you type.
+These roles are for **«Replace null-config lookup with Option»** — not a generic Client→Pattern poster. Keep them on screen
+while you type the solution.
 
 ## Refactor to the Pattern
 
 ### Stage 1 — Name the boundary
-Identify the client-facing API the rest of the app should depend on. Hide the incompatible
-or distributed details behind it.
+Introduce the client-facing API the rest of the app should depend on. Hide the incompatible or
+distributed details behind it. For this episode that boundary is what makes «Replace null-config lookup with Option» testable.
 
 ### Stage 2 — Encode the solution
 ```java
 package com.buildwithwaqar.patterns.functional.vavrcompare.problem;
 
-import java.util.*;
-import java.util.function.*;
+/**
+ * Side-by-side: same Option describe / map+flatMap program on real VAVR and real Zazr.
+ */
+public final class OptionCompare {
+    private OptionCompare() {}
 
-final class OptionCompare {
-  static String zazrDescribe(String raw){
-    var o = raw==null? Optional.<String>empty(): Optional.of(raw);
-    return o.map(s -> "zazr-some:"+s).orElse("zazr-none");
-  }
-  static String vavrStyleDescribe(String raw){
-    // educational stand-in without requiring VAVR API in problem package
-    return raw==null? "vavr-none": "vavr-some:"+raw;
-  }
+    public static String vavrDescribe(String raw) {
+        io.vavr.control.Option<String> o = raw == null
+                ? io.vavr.control.Option.none()
+                : io.vavr.control.Option.some(raw);
+        return o.map(s -> "vavr-some:" + s).getOrElse("vavr-none");
+    }
+
+    public static String zazrDescribe(String raw) {
+        dev.zazr.control.Option<String> o = raw == null
+                ? dev.zazr.control.Option.none()
+                : dev.zazr.control.Option.some(raw);
+        return o.map(s -> "zazr-some:" + s).getOrElse("zazr-none");
+    }
+
+    /** Trim → reject blank → lowercase — identical pipeline on both libraries. */
+    public static String vavrMapFlat(String raw) {
+        return io.vavr.control.Option.of(raw)
+                .flatMap(s -> s.isBlank() ? io.vavr.control.Option.none() : io.vavr.control.Option.some(s.trim()))
+                .map(String::toLowerCase)
+                .map(s -> "vavr-some:" + s)
+                .getOrElse("vavr-none");
+    }
+
+    public static String zazrMapFlat(String raw) {
+        return (raw == null ? dev.zazr.control.Option.<String>none() : dev.zazr.control.Option.some(raw))
+                .flatMap(s -> s.isBlank() ? dev.zazr.control.Option.none() : dev.zazr.control.Option.some(s.trim()))
+                .map(String::toLowerCase)
+                .map(s -> "zazr-some:" + s)
+                .getOrElse("zazr-none");
+    }
 }
 
 ```
@@ -78,22 +100,34 @@ final class OptionCompare {
 ### Stage 3 — Runnable main
 ```java
 package com.buildwithwaqar.patterns.functional.vavrcompare.problem;
-import java.util.*; import java.util.function.*;
+
+/** Problem: same Option describe — real io.vavr vs real dev.zazr. */
 public final class ProblemDemo {
-  public static void main(String[] args) {
-    System.out.println("=== VAVR vs Zazr: same Option describe ===");
-    System.out.println("--- naive ---"); System.out.println(NaiveOpt.describe(null));
-System.out.println("--- compare ---");
-System.out.println(OptionCompare.zazrDescribe("x"));
-System.out.println(OptionCompare.vavrStyleDescribe("x"));
-System.out.println(OptionCompare.zazrDescribe(null));
-System.out.println(OptionCompare.vavrStyleDescribe(null));
-  }
+    public static void main(String[] args) {
+        System.out.println("=== VAVR vs Zazr: real Option APIs ===");
+        System.out.println("--- naive null String ---");
+        System.out.println(NaiveOpt.describe(null));
+        System.out.println(NaiveOpt.describe("Hi"));
+
+        System.out.println("--- describe (some/none) ---");
+        System.out.println(OptionCompare.vavrDescribe("x"));
+        System.out.println(OptionCompare.zazrDescribe("x"));
+        System.out.println(OptionCompare.vavrDescribe(null));
+        System.out.println(OptionCompare.zazrDescribe(null));
+
+        System.out.println("--- map/flatMap pipeline ---");
+        System.out.println(OptionCompare.vavrMapFlat("  Hello "));
+        System.out.println(OptionCompare.zazrMapFlat("  Hello "));
+        System.out.println(OptionCompare.vavrMapFlat("   "));
+        System.out.println(OptionCompare.zazrMapFlat("   "));
+        System.out.println(OptionCompare.vavrMapFlat(null));
+        System.out.println(OptionCompare.zazrMapFlat(null));
+    }
 }
 
 ```
 
-## Hand-Traced Walkthrough (Verified on JDK 25)
+## Runnable Output (Verified on JDK 25)
 Narrate each line. Do not invent numbers on camera.
 
 ```text
@@ -107,82 +141,69 @@ zazr-none
 vavr-none
 ```
 
-Trace: match each printed line to a stage above. Fork the repo, set `JAVA_HOME` to JDK 25,
-and re-run the same main class to verify.
+Happy-path cue: `none`.
+Failure-path cue: `none`.
+Fork the repo, set `JAVA_HOME` to JDK 25, and re-run the same `ProblemDemo` to verify.
 
 ## Modern Java 25 / Zazr Variant
-Prefer records for results, sealed types for closed variants, pattern matching for exhaustive
-handling, virtual threads for blocking fan-out, and Zazr for Option/Either/Try/Validation
-when the force is about absence or accumulated errors. Keep the classic shape when interview
-literacy matters.
+Absence / errors use **Optional or Zazr/VAVR** control types instead of null.
 
 ## Trade-offs
-- **Clarity vs ceremony:** five types for a two-line problem is a fail.
-- **Testability:** inject collaborators; for Saga, inject failure at each step.
-- **Distributed reality:** teaching demos omit metrics, poison pills, and multi-region clocks.
-- **Refuse the pattern** when a sealed switch, a function value, or a simpler library call
-  already erases the force.
-
-## When to Use / When Not to Use
-**Use when** the problem above shows up more than once and a simpler language feature does
-not erase it.
-
-**Avoid when** you are pattern-collecting, when the boundary is still unclear, or when the
-team cannot yet test the abstraction (especially compensations and half-open recovery).
-
-## Related Patterns
-Contrast Zazr & VAVR with its usual twin (Adapter vs Facade, Saga vs Outbox, Reader vs DI/Cake,
-State vs Strategy, Free vs Tagless). Say the distinguishing sentence out loud.
+- **Clarity vs ceremony:** extra types for «Replace null-config lookup with Option» only pay off when the force repeats.
+- **Testability:** inject collaborators; assert the failure path, not only the happy path.
+- **Distributed / concurrent reality:** demos omit metrics, backpressure, and multi-region clocks.
+- **Refuse Zazr & VAVR** when a sealed switch, a function value, or a simpler library call already erases the force.
+- **Neighbor:** name the pattern usually confused with Zazr & VAVR and separate the forces.
 
 ## Interview Q&A
 **Q1. What concrete problem does Zazr & VAVR solve here?**
 A: Replace null-config lookup with Option.
 
 **Q2. What does the naive design get wrong?**
-A: Point at the naive code smells from this episode.
+A: Naive version fails to cleanly solve: Replace null-config lookup with Option
 
-**Q3. How do you test failure paths?**
-A: Inject a failing collaborator (Saga step, SOAP fault, missing file) and assert the
-observable outcome — compensation order, FAILED result, or thrown IllegalStateException.
+**Q3. How do you test the failure path?**
+A: Inject the fault and assert the observable outcome — e.g. `none`.
 
 **Q4. When is Zazr & VAVR the wrong tool?**
-A: Give a smaller counterexample where a function, Option, or facade is enough.
+A: When a smaller language feature erases the force, or when you really needed a neighboring pattern.
 
-**Q5. How does Java 25 change the encoding?**
-A: Records, sealed types, virtual threads, Zazr control types — pick what applies.
 
 ## Key Takeaways
 - Lead with the problem: Replace null-config lookup with Option.
-- Show naive pain before naming Zazr & VAVR.
-- Run the Demo; trust JDK 25 stdout.
-- Teach when NOT to use it.
+- Show naive pain (`none`) before naming Zazr & VAVR.
+- Run the Demo; trust JDK 25 stdout (`none`).
+- Teach when NOT to use Zazr & VAVR.
 
 ## Video Script (≈10–12 minutes)
 Record for **Build with Waqar**. OBS for capture, CapCut for assembly. Import `slides.pdf`.
+Facecam: full-screen for the hook, framed PiP over code slides.
 
-**[0:00]** *(slide 01 title)*
-Hey everyone, welcome back to Build with Waqar. Today we solve a real problem with Zazr & VAVR:
-Replace null-config lookup with Option.
+**[0:00]** *(slide 01 title + talking head)*
+Hey everyone — today we solve one concrete problem with **Zazr & VAVR**:
+*Replace null-config lookup with Option*. Keep these names in your head: OptionCompare.
 
-**[0:40]** *(slide 02–03 problem)*
-I am not starting with a definition. Here is the product pain. Keep these names — they
-reappear in the Demo output.
+**[0:45]** *(problem + hook slides)*
+I am not starting with a textbook definition. Here is the product pain. By the end you will have
+seen the naive leak, the pattern boundary, and real JDK 25 stdout.
 
 **[2:00]** *(naive code)*
-IDE time. This is the naive version. Call out the smell.
+IDE time. This is the naive version. Call out the smell — that is what Zazr & VAVR exists to erase.
 
-**[3:30]** *(diagram)*
-Structure for **this** problem. Point at each role.
+**[3:30]** *(structure diagram)*
+Roles for **this** problem, not a generic UML poster. Point at each box while you talk.
 
-**[4:30]** *(refactor stages)*
-Stage by stage into the pattern. Highlight tests and failure injection.
+**[4:30]** *(refactor / solution code)*
+Stage the solution. Highlight failure injection and the tests that lock it in.
 
 **[7:00]** *(walkthrough output)*
-Real stdout from JDK 25. Line by line. No fake numbers.
+Real stdout. Happy path cue: `none`.
+Failure cue: `none`.
+No invented numbers on camera.
 
-**[8:30]** *(modern + trade-offs)*
-Java 25 / Zazr take, then slow down for when NOT to use Zazr & VAVR.
+**[8:30]** *(modern Java 25 / Zazr + trade-offs)*
+Show the modernization, then slow down for when NOT to use Zazr & VAVR. That is what seniors listen for.
 
-**[10:30]** *(interview + recap)*
-Two interview questions, three takeaways, link the GitHub episode folder. I am Waqar —
-see you in the next one.
+**[10:30]** *(Q&A + recap + outro)*
+Two interview questions, three takeaways, link the GitHub episode folder. I am Waqar — see you in the next one.
+

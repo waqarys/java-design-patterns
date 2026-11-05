@@ -591,7 +591,7 @@ Fork the repo, set `JAVA_HOME` to JDK 25, and re-run the same `ProblemDemo` to v
             lines[-1] = short_problem(lines[-1], 68)
         subtitle = "\n".join(lines)
         prob_short = short_problem(prob_full, 70)
-    caption = short_problem(f"{pattern}: {problem}", 68)
+    caption = f"{pattern}: {problem}"  # make_lecture wraps to ≤2 lines
     modern = solution[:1200] if any(k in solution for k in ("sealed", "record ", "Optional", "CompletableFuture", "virtual", "io.vavr", "dev.zazr")) else (
         f"// Java 25 direction for {pattern}\n// Prefer records + sealed where they shrink the demo.\n// Problem: {problem}\n"
     )
