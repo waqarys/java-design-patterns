@@ -21,27 +21,27 @@ Deep episodes for OBS + CapCut. Each folder has `explanation.md` (~1.5–2.5k wo
 
 ### Season 2 · Structural (GoF)
 
-- [08-adapter](08-adapter/) — **Adapter** · ~8 min script · 441 words · 14 slides
-- [09-bridge](09-bridge/) — **Bridge** · ~8 min script · 509 words · 14 slides
-- [10-composite](10-composite/) — **Composite** · ~8 min script · 442 words · 15 slides
-- [11-decorator](11-decorator/) — **Decorator** · ~8 min script · 537 words · 15 slides
-- [12-facade](12-facade/) — **Facade** · ~8 min script · 487 words · 14 slides
-- [13-flyweight](13-flyweight/) — **Flyweight** · ~8 min script · 466 words · 14 slides
-- [14-proxy](14-proxy/) — **Proxy** · ~8 min script · 472 words · 14 slides
+- [08-adapter](08-adapter/) — **Adapter** · ~9 min script · 1780 words · 15 slides
+- [09-bridge](09-bridge/) — **Bridge** · ~10 min script · 1850 words · 16 slides
+- [10-composite](10-composite/) — **Composite** · ~10 min script · 1800 words · 16 slides
+- [11-decorator](11-decorator/) — **Decorator** · ~10 min script · 1894 words · 17 slides
+- [12-facade](12-facade/) — **Facade** · ~10 min script · 1835 words · 15 slides
+- [13-flyweight](13-flyweight/) — **Flyweight** · ~10 min script · 1846 words · 16 slides
+- [14-proxy](14-proxy/) — **Proxy** · ~10 min script · 1809 words · 16 slides
 
 ### Season 3 · Behavioral (GoF)
 
-- [15-chain-of-responsibility](15-chain-of-responsibility/) — **Chain of Responsibility** · ~8 min script · 492 words · 15 slides
-- [16-command](16-command/) — **Command** · ~8 min script · 479 words · 15 slides
-- [17-interpreter](17-interpreter/) — **Interpreter** · ~8 min script · 436 words · 14 slides
-- [18-iterator](18-iterator/) — **Iterator** · ~8 min script · 442 words · 15 slides
-- [19-mediator](19-mediator/) — **Mediator** · ~8 min script · 489 words · 15 slides
-- [20-memento](20-memento/) — **Memento** · ~8 min script · 454 words · 14 slides
-- [21-observer](21-observer/) — **Observer** · ~8 min script · 397 words · 14 slides
-- [22-state](22-state/) — **State** · ~8 min script · 547 words · 15 slides
-- [23-strategy](23-strategy/) — **Strategy** · ~8 min script · 455 words · 14 slides
-- [24-template-method](24-template-method/) — **Template Method** · ~8 min script · 452 words · 14 slides
-- [25-visitor](25-visitor/) — **Visitor** · ~8 min script · 510 words · 15 slides
+- [15-chain-of-responsibility](15-chain-of-responsibility/) — **Chain of Responsibility** · ~10 min script · 1892 words · 16 slides
+- [16-command](16-command/) — **Command** · ~10 min script · 1842 words · 16 slides
+- [17-interpreter](17-interpreter/) — **Interpreter** · ~9 min script · 1793 words · 16 slides
+- [18-iterator](18-iterator/) — **Iterator** · ~10 min script · 1810 words · 16 slides
+- [19-mediator](19-mediator/) — **Mediator** · ~10 min script · 1894 words · 16 slides
+- [20-memento](20-memento/) — **Memento** · ~10 min script · 1825 words · 16 slides
+- [21-observer](21-observer/) — **Observer** · ~9 min script · 1795 words · 15 slides
+- [22-state](22-state/) — **State** · ~10 min script · 1874 words · 16 slides
+- [23-strategy](23-strategy/) — **Strategy** · ~10 min script · 1816 words · 16 slides
+- [24-template-method](24-template-method/) — **Template Method** · ~10 min script · 1822 words · 15 slides
+- [25-visitor](25-visitor/) — **Visitor** · ~10 min script · 1865 words · 16 slides
 
 ### Season 4 · Enterprise
 
