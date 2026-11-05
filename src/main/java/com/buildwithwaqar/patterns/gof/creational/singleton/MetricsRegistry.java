@@ -14,5 +14,5 @@ public final class MetricsRegistry {
 
     public synchronized void hit() { hits++; }
     public synchronized long hits() { return hits; }
-    synchronized void reset() { hits = 0; }
+    public synchronized void reset() { hits = 0; }
 }

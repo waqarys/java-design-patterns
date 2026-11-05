@@ -23,5 +23,5 @@ public final class LazyImageProxy implements Image {
         return real.display();
     }
 
-    boolean loaded() { return real != null; }
+    public boolean loaded() { return real != null; }
 }

@@ -8,7 +8,7 @@ ROOT = Path(__file__).resolve().parents[2]
 def read(path: Path) -> str:
     return path.read_text() if path.exists() else ""
 
-def ensure_words(text: str, minimum=1600) -> str:
+def ensure_words(text: str, minimum=1800) -> str:
     """If still short, append a 'Studio notes' teaching appendix (still useful on camera)."""
     if len(text.split()) >= minimum:
         return text

@@ -3,13 +3,6 @@ package com.buildwithwaqar.patterns.gof.structural.composite;
 import java.util.ArrayList;
 import java.util.List;
 
-sealed interface FileSystemNode permits FileLeaf, DirectoryComposite {
-    String name();
-    int size();
-}
-
-record FileLeaf(String name, int size) implements FileSystemNode {}
-
 public final class DirectoryComposite implements FileSystemNode {
     private final String name;
     private final List<FileSystemNode> children = new ArrayList<>();

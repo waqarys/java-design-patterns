@@ -1,10 +1,5 @@
 package com.buildwithwaqar.patterns.gof.structural.decorator;
 
-interface DataSource {
-    String read();
-    void write(String data);
-}
-
 final class InMemoryDataSource implements DataSource {
     private String data = "";
     public String read() { return data; }
