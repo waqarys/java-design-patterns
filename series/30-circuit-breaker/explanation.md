@@ -1,6 +1,6 @@
 # Circuit Breaker
 
-**Season:** 4 · Enterprise · **Category:** Enterprise · **Level:** Intermediate · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar
+**Season:** 4 · Enterprise · **Category:** Enterprise · **Level:** Intermediate · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar
 
 ## Problem
 **Protect calls to flaky rates API**
@@ -24,22 +24,13 @@ failure, or couple call sites to a third-party shape. That feels fast on day one
 on day thirty.
 
 ```java
-package com.buildwithwaqar.patterns.enterprise.circuitbreaker;
+package com.buildwithwaqar.patterns.enterprise.circuitbreaker.problem;
 
-import com.buildwithwaqar.patterns.enterprise.circuitbreaker.CircuitBreaker;
-import java.time.*;
-import java.util.concurrent.atomic.AtomicReference;
-/** Problem: stop hammering a flaky rates HTTP API; recover after timeout. */
-public final class UseCaseDemo {
-  public static void main(String[] a) throws Exception {
-    System.out.println("=== Circuit Breaker problem: flaky rates API ===");
-    var now = new AtomicReference<>(Instant.parse("2026-01-01T00:00:00Z"));
-    var cb = new CircuitBreaker(2, Duration.ofSeconds(30), now::get);
-    for (int i=0;i<2;i++) try { cb.call(() -> { throw new RuntimeException("503"); }); } catch (Exception e) { System.out.println("fail state="+cb.state()); }
-    try { cb.call(() -> "ok"); } catch (Exception e) { System.out.println("shortCircuit="+e.getMessage()); }
-    now.set(now.get().plusSeconds(31));
-    System.out.println("recovered="+cb.call(() -> "rate=83.2")+" state="+cb.state());
-  }
+import java.util.*;
+
+public final class NaiveRates {
+  private int fails;
+  public String rate(){ if(fails++ < 3) throw new RuntimeException("down"); return "83.2"; }
 }
 
 ```
@@ -65,74 +56,56 @@ or distributed details behind it.
 
 ### Stage 2 — Encode the solution
 ```java
-package com.buildwithwaqar.patterns.enterprise.circuitbreaker;
+package com.buildwithwaqar.patterns.enterprise.circuitbreaker.problem;
 
-import java.time.Duration;
-import java.time.Instant;
-import java.util.concurrent.Callable;
-import java.util.function.Supplier;
+import java.util.*;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.*;
+import java.util.concurrent.locks.*;
+import java.util.function.*;
 
-public final class CircuitBreaker {
-    public enum State { CLOSED, OPEN, HALF_OPEN }
-
-    private final int failureThreshold;
-    private final Duration openTimeout;
-    private final Supplier<Instant> clock;
-
-    private State state = State.CLOSED;
-    private int failures;
-    private Instant openedAt = Instant.EPOCH;
-
-    public CircuitBreaker(int failureThreshold, Duration openTimeout, Supplier<Instant> clock) {
-        this.failureThreshold = failureThreshold;
-        this.openTimeout = openTimeout;
-        this.clock = clock;
+enum CbState { CLOSED, OPEN, HALF_OPEN }
+final class CircuitBreaker {
+  private final int threshold; private int failures; private CbState state=CbState.CLOSED; private long openedAt;
+  private final long resetMs; CircuitBreaker(int threshold, long resetMs){ this.threshold=threshold; this.resetMs=resetMs; }
+  CbState state(){ return state; }
+  String call(Supplier<String> action){
+    if (state==CbState.OPEN){
+      if (System.currentTimeMillis()-openedAt < resetMs) throw new IllegalStateException("circuit open");
+      state=CbState.HALF_OPEN;
     }
-
-    public State state() { return state; }
-
-    public <T> T call(Callable<T> action) throws Exception {
-        if (state == State.OPEN) {
-            if (clock.get().isAfter(openedAt.plus(openTimeout))) {
-                state = State.HALF_OPEN;
-            } else {
-                throw new IllegalStateException("circuit open");
-            }
-        }
-        try {
-            var result = action.call();
-            failures = 0;
-            state = State.CLOSED;
-            return result;
-        } catch (Exception e) {
-            failures++;
-            if (failures >= failureThreshold || state == State.HALF_OPEN) {
-                state = State.OPEN;
-                openedAt = clock.get();
-            }
-            throw e;
-        }
+    try {
+      String r=action.get(); failures=0; state=CbState.CLOSED; return r;
+    } catch (RuntimeException e){
+      failures++;
+      if (failures>=threshold || state==CbState.HALF_OPEN){ state=CbState.OPEN; openedAt=System.currentTimeMillis(); }
+      throw e;
     }
+  }
 }
 
 ```
 
 ### Stage 3 — Runnable main
 ```java
-package com.buildwithwaqar.patterns.enterprise.circuitbreaker;
+package com.buildwithwaqar.patterns.enterprise.circuitbreaker.problem;
 
-import com.buildwithwaqar.patterns.enterprise.circuitbreaker.CircuitBreaker;
-import java.time.*;
-import java.util.concurrent.atomic.AtomicReference;
-/** Problem: stop hammering a flaky rates HTTP API; recover after timeout. */
-public final class UseCaseDemo {
-  public static void main(String[] a) throws Exception {
-    System.out.println("=== Circuit Breaker problem: flaky rates API ===");
-    var now = new AtomicReference<>(Instant.parse("2026-01-01T00:00:00Z"));
-    var cb = new CircuitBreaker(2, Duration.ofSeconds(30), now::get);
-    for (int i=0;i<2;i++) try { cb.call(() -> { throw new RuntimeException("503"); }); } catch (Exception e) { System.out.println("fail state="+cb.state()); }
-    try { cb.call(() -> "ok"); } catch (Exception e) { System.out.println("shortCircuit="+e.getMessage()); }
-    now.set(now.get().plusSeconds(31));
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Supplier;
+
+public final class ProblemDemo {
+  public static void main(String[] args) throws Exception {
+    System.out.println("=== Circuit Breaker: flaky rates API ===");
+    System.out.println("--- naive ---");
+    var n=new NaiveRates();
+    for(int i=0;i<4;i++){ try{ System.out.println(n.rate()); } catch(Exception e){ System.out.println("fail"); } }
+    System.out.println("--- circuit breaker ---");
+    AtomicInteger blows=new AtomicInteger();
+    var cb=new CircuitBreaker(2, 10);
+    Supplier<String> flaky=() -> { if(blows.getAndIncrement()<2) throw new RuntimeException("down"); return "rate=83.2"; };
+    for (int i=0;i<2;i++){ try{ System.out.println(cb.call(flaky)); } catch(Exception e){ System.out.println("fail state="+cb.state()); } }
+    try { cb.call(flaky); } catch(IllegalStateException e){ System.out.println("shortCircuit="+e.getMessage()+" state="+cb.state()); }
+    Thread.sleep(15); blows.set(100);
     System.out.println("recovered="+cb.call(() -> "rate=83.2")+" state="+cb.state());
   }
 }
@@ -143,10 +116,16 @@ public final class UseCaseDemo {
 Narrate each line. Do not invent numbers on camera.
 
 ```text
-=== Circuit Breaker problem: flaky rates API ===
+=== Circuit Breaker: flaky rates API ===
+--- naive ---
+fail
+fail
+fail
+83.2
+--- circuit breaker ---
 fail state=CLOSED
 fail state=OPEN
-shortCircuit=circuit open
+shortCircuit=circuit open state=OPEN
 recovered=rate=83.2 state=CLOSED
 ```
 
@@ -229,65 +208,3 @@ Java 25 / Zazr take, then slow down for when NOT to use Circuit Breaker.
 **[10:30]** *(interview + recap)*
 Two interview questions, three takeaways, link the GitHub episode folder. I am Waqar —
 see you in the next one.
-
-
-## Studio Notes for Build with Waqar
-When you record this episode, keep the energy practical. Start with the product pain, not the pattern name. Viewers stay when they feel the bug before they learn the label. In CapCut, overlay the slide number in the corner and cut idle IDE scrolling. If a code block is long, zoom CapCut to the highlighted lines rather than shrinking the font on the slide. Re-run the Demo live once if your machine allows — viewers trust a terminal more than a screenshot. Finally, end with a single actionable challenge: ask them to open the repo, run the Demo, and mutate one assertion in the test to see the failure. That turns passive watching into practice.
-
-### CapCut Checklist
-- Import `slides.pdf` or the PNG sequence at 1920×1080.
-- Align voiceover to the timestamps in the Video Script section.
-- Keep lower-thirds short: pattern name + one-line intent.
-- Add a pinned comment with the GitHub path to this episode folder.
-
-### Common Recording Mistakes
-- Reading UML without showing running output.
-- Skipping the "when NOT to use" section — that is what seniors listen for.
-- Rushing trade-offs. Slow down here; it is interview gold.
-- Forgetting to mention the test class name so learners can `mvn -Dtest=... test`.
-
-
-## Practice Drill (Do This After Watching)
-1. Clone `waqarys/java-design-patterns` and set `JAVA_HOME` to JDK 25.
-2. Run the episode Demo (`mvn -q exec:java -Dexec.mainClass=...` or `java -cp ... Demo`).
-3. Break the implementation on purpose; watch the test fail; restore it.
-4. Write one alternative design in a scratch branch and compare readability.
-5. Explain the pattern out loud in sixty seconds without looking at notes — that is your introspective for interviews.
-
-## Glossary
-- **Force:** the design pressure (extensibility, coupling, allocation, testability) that makes a pattern worth considering.
-- **Role:** a participant name from the pattern (Context, Strategy, Client, Creator, Product).
-- **Smell:** a code signal that a force is unresolved (telescoping constructors, instanceof forests, god classes).
-- **Modernization:** the Java 25 / Zazr encoding that preserves the force-resolution with less ceremony.
-
-
-## Problem Deep Dive
-The concrete problem for this episode is: **Protect calls to flaky rates API**.
-
-Walk the naive path slowly on camera. Ask viewers what breaks first when requirements change —
-a new file to load, a new payment currency, a new saga step, a new illegal state transition.
-That question is the force. The pattern is just the name we give the force once we have felt it.
-
-Then open the solution types and show the boundary: what the rest of the app is allowed to
-depend on, and what stays hidden. Highlight how the runnable main prints a meaningful trace —
-happy path and at least one failure path — so CapCut can cut between IDE and terminal without
-inventing numbers.
-
-Finally, spend a full minute on trade-offs. Seniors stay for the "when not". Juniors need the
-happy path. Your job on Build with Waqar is both.
-
-
-## Studio Notes for Build with Waqar
-When you record this episode, keep the energy practical. Start with the product pain, not the pattern name. Viewers stay when they feel the bug before they learn the label. In CapCut, overlay the slide number in the corner and cut idle IDE scrolling. If a code block is long, zoom CapCut to the highlighted lines rather than shrinking the font on the slide. Re-run the Demo live once if your machine allows — viewers trust a terminal more than a screenshot. Finally, end with a single actionable challenge: ask them to open the repo, run the Demo, and mutate one assertion in the test to see the failure. That turns passive watching into practice.
-
-### CapCut Checklist
-- Import `slides.pdf` or the PNG sequence at 1920×1080.
-- Align voiceover to the timestamps in the Video Script section.
-- Keep lower-thirds short: pattern name + one-line intent.
-- Add a pinned comment with the GitHub path to this episode folder.
-
-### Common Recording Mistakes
-- Reading UML without showing running output.
-- Skipping the "when NOT to use" section — that is what seniors listen for.
-- Rushing trade-offs. Slow down here; it is interview gold.
-- Forgetting to mention the test class name so learners can `mvn -Dtest=... test`.

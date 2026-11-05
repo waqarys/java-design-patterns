@@ -1,3 +1,6 @@
-=== Repository problem: user persistence ===
-User[id=1, email=waqar@bwq.dev]
-missing=Optional.empty
+=== Repository: users collection API ===
+--- naive ---
+null
+--- repository ---
+Optional[User[id=1, email=a@b.c]]
+Optional.empty

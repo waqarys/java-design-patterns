@@ -1,5 +1,11 @@
-=== Circuit Breaker problem: flaky rates API ===
+=== Circuit Breaker: flaky rates API ===
+--- naive ---
+fail
+fail
+fail
+83.2
+--- circuit breaker ---
 fail state=CLOSED
 fail state=OPEN
-shortCircuit=circuit open
+shortCircuit=circuit open state=OPEN
 recovered=rate=83.2 state=CLOSED

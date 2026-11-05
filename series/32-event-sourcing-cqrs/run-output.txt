@@ -1,4 +1,7 @@
-=== Event Sourcing problem: bank ledger ===
-balance=70
-events=[Deposited[amount=100], Withdrawn[amount=30]]
-readModel=70
+=== Event Sourcing: bank ledger + balance ===
+--- naive ---
+60
+--- event sourcing ---
+bal=60
+events=[Deposited[cents=100], Withdrawn[cents=40]]
+caught=funds

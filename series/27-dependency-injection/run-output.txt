@@ -1,3 +1,6 @@
-=== DI problem: wire greeter ===
-hello Waqar
-same=true
+=== DI: wire Greeter without hard new ===
+--- naive ---
+hi Ada
+--- DI ---
+Hello, Ada
+caught=missing Greeter

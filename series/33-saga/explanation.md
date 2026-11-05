@@ -1,9 +1,9 @@
 # Saga
 
-**Season:** 4 · Enterprise · **Category:** Enterprise · **Level:** Intermediate · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar
+**Season:** 4 · Enterprise · **Category:** Enterprise · **Level:** Intermediate · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar
 
 ## Problem
-**Order: reserve→charge→ship with reverse compensations**
+**Order booking: orchestration + event-bus choreography with compensations**
 
 This episode is built around that concrete problem — not a shared StreamForge framing.
 You will see a real naive implementation that hurts, a full pattern-based solution, a
@@ -14,11 +14,11 @@ runnable main with meaningful stdout, and JUnit failure-path coverage where the 
 
 ## Hook
 Welcome back to **Build with Waqar**. Today we earn **Saga** by solving one problem well:
-*Order: reserve→charge→ship with reverse compensations*. By the end you will have walked naive pain → pattern refactor → real JDK 25
+*Order booking: orchestration + event-bus choreography with compensations*. By the end you will have walked naive pain → pattern refactor → real JDK 25
 stdout → trade-offs, with CapCut slides and a spoken script.
 
 ## Intent
-Saga exists because this force kept showing up: order: reserve→charge→ship with reverse compensations. Name the force, sketch
+Saga exists because this force kept showing up: order booking: orchestration + event-bus choreography with compensations. Name the force, sketch
 the roles, and — critically — know when you would refuse the pattern.
 
 ## The Pain — Naive Design
@@ -159,7 +159,7 @@ public final class OrderBookingSaga {
 ```java
 package com.buildwithwaqar.patterns.enterprise.saga.problem;
 
-/** Problem: reserve → charge → ship with reverse compensations on mid-flow failure. */
+/** Problem: reserve → charge → ship with reverse compensations (orchestration + choreography). */
 public final class ProblemDemo {
     public static void main(String[] args) {
         System.out.println("=== Saga problem: order booking with rollback ===");
@@ -168,18 +168,33 @@ public final class ProblemDemo {
         System.out.println("naiveBooked=" + new NaiveOrderFlow(leak).book("N1", "SKU", 1, 100, "A"));
         System.out.println("naiveReserved=" + leak.reserved());
 
-        System.out.println("--- saga happy path ---");
+        System.out.println("--- orchestration happy path ---");
         var okP = OrderBookingSaga.InMemoryPartners.alwaysOk();
         var ok = new OrderBookingSaga(okP, okP, okP);
         System.out.println("booked=" + ok.book("S1", "SKU", 1, 1000, "Ship St"));
         System.out.println("log=" + ok.log());
 
-        System.out.println("--- saga fails at ship; compensates reverse ---");
+        System.out.println("--- orchestration fails at ship; compensates reverse ---");
         var failP = new OrderBookingSaga.InMemoryPartners(() -> true, () -> true, () -> false);
         var fail = new OrderBookingSaga(failP, failP, failP);
         System.out.println("booked=" + fail.book("S2", "SKU", 1, 1000, "Ship St"));
         System.out.println("log=" + fail.log());
-        System.out.println("reserved=" + failP.reserved() + " charged=" + failP.charged() + " shipped=" + failP.shipped());
+
+        System.out.println("--- choreography happy path (event bus) ---");
+        var bus = new EventBus();
+        var cOk = OrderBookingSaga.InMemoryPartners.alwaysOk();
+        var choreo = new ChoreographyOrderSaga(bus, cOk);
+        System.out.println("booked=" + choreo.book("C1", "SKU", 1, 500, "Bus Ave"));
+        System.out.println("log=" + choreo.log());
+        System.out.println("events=" + bus.history().stream().map(e -> e.getClass().getSimpleName()).toList());
+
+        System.out.println("--- choreography fails at charge; compensates ---");
+        var bus2 = new EventBus();
+        var cFail = new OrderBookingSaga.InMemoryPartners(() -> true, () -> false, () -> true);
+        var choreoFail = new ChoreographyOrderSaga(bus2, cFail);
+        System.out.println("booked=" + choreoFail.book("C2", "SKU", 1, 500, "Bus Ave"));
+        System.out.println("log=" + choreoFail.log());
+        System.out.println("reserved=" + cFail.reserved() + " charged=" + cFail.charged());
     }
 }
 
@@ -193,13 +208,20 @@ Narrate each line. Do not invent numbers on camera.
 --- naive (payment fails → inventory leak) ---
 naiveBooked=false
 naiveReserved=[N1]
---- saga happy path ---
+--- orchestration happy path ---
 booked=true
 log=[ok:reserve, ok:charge, ok:ship, committed]
---- saga fails at ship; compensates reverse ---
+--- orchestration fails at ship; compensates reverse ---
 booked=false
 log=[ok:reserve, ok:charge, abort:shipping:carrier_down, compensate:refund, compensate:release, rolled_back]
-reserved=[] charged=[] shipped=[]
+--- choreography happy path (event bus) ---
+booked=true
+log=[ok:reserve, react:payment-on-reserved, ok:charge, react:ship-on-charged, ok:ship, committed]
+events=[InventoryReserved, PaymentCharged, ShipmentCreated]
+--- choreography fails at charge; compensates ---
+booked=false
+log=[ok:reserve, react:payment-on-reserved, abort:charge:card_declined, compensate:release, rolled_back]
+reserved=[] charged=[]
 ```
 
 Trace: match each printed line to a stage above. Fork the repo, set `JAVA_HOME` to JDK 25,
@@ -231,7 +253,7 @@ State vs Strategy, Free vs Tagless). Say the distinguishing sentence out loud.
 
 ## Interview Q&A
 **Q1. What concrete problem does Saga solve here?**
-A: Order: reserve→charge→ship with reverse compensations.
+A: Order booking: orchestration + event-bus choreography with compensations.
 
 **Q2. What does the naive design get wrong?**
 A: Point at the naive code smells from this episode.
@@ -247,7 +269,7 @@ A: Give a smaller counterexample where a function, Option, or facade is enough.
 A: Records, sealed types, virtual threads, Zazr control types — pick what applies.
 
 ## Key Takeaways
-- Lead with the problem: Order: reserve→charge→ship with reverse compensations.
+- Lead with the problem: Order booking: orchestration + event-bus choreography with compensations.
 - Show naive pain before naming Saga.
 - Run the Demo; trust JDK 25 stdout.
 - Teach when NOT to use it.
@@ -257,7 +279,7 @@ Record for **Build with Waqar**. OBS for capture, CapCut for assembly. Import `s
 
 **[0:00]** *(slide 01 title)*
 Hey everyone, welcome back to Build with Waqar. Today we solve a real problem with Saga:
-Order: reserve→charge→ship with reverse compensations.
+Order booking: orchestration + event-bus choreography with compensations.
 
 **[0:40]** *(slide 02–03 problem)*
 I am not starting with a definition. Here is the product pain. Keep these names — they
@@ -281,19 +303,3 @@ Java 25 / Zazr take, then slow down for when NOT to use Saga.
 **[10:30]** *(interview + recap)*
 Two interview questions, three takeaways, link the GitHub episode folder. I am Waqar —
 see you in the next one.
-
-
-## Studio Notes for Build with Waqar
-When you record this episode, keep the energy practical. Start with the product pain, not the pattern name. Viewers stay when they feel the bug before they learn the label. In CapCut, overlay the slide number in the corner and cut idle IDE scrolling. If a code block is long, zoom CapCut to the highlighted lines rather than shrinking the font on the slide. Re-run the Demo live once if your machine allows — viewers trust a terminal more than a screenshot. Finally, end with a single actionable challenge: ask them to open the repo, run the Demo, and mutate one assertion in the test to see the failure. That turns passive watching into practice.
-
-### CapCut Checklist
-- Import `slides.pdf` or the PNG sequence at 1920×1080.
-- Align voiceover to the timestamps in the Video Script section.
-- Keep lower-thirds short: pattern name + one-line intent.
-- Add a pinned comment with the GitHub path to this episode folder.
-
-### Common Recording Mistakes
-- Reading UML without showing running output.
-- Skipping the "when NOT to use" section — that is what seniors listen for.
-- Rushing trade-offs. Slow down here; it is interview gold.
-- Forgetting to mention the test class name so learners can `mvn -Dtest=... test`.

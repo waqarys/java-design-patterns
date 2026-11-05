@@ -1,3 +1,8 @@
-=== Outbox problem: reliable publish ===
-unpublished=1
-afterRelay=0 orders=[ord-1]
+=== Outbox: order + event atomically ===
+--- naive ---
+saved o1
+caught=broker down
+--- outbox ---
+relayed=1
+published=[OrderPlaced:o1]
+relayedAgain=0

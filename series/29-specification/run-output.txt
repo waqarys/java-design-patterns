@@ -1,4 +1,5 @@
-=== Specification problem: catalog filter ===
-Product[name=mug, priceCents=500, inStock=true] => true
-Product[name=tv, priceCents=50000, inStock=true] => false
-Product[name=mug, priceCents=500, inStock=false] => false
+=== Specification: cheap AND in-stock ===
+--- naive ---
+[item0]
+--- specification ---
+[a]

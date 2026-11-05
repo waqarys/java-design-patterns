@@ -1,3 +1,6 @@
-=== Retry problem: flaky broker publish ===
-result=PUBLISHED
-attempts=3
+=== Retry: transient broker errors ===
+--- naive ---
+caught=broker
+--- retry ---
+published
+caught=still

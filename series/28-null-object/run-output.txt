@@ -1,4 +1,4 @@
-=== Null Object problem: optional logger ===
-ok:o1
-ok:o2
-log=placing o2
+=== Null Object: safe logger ===
+--- naive null check ---
+--- null object ---
+[placed o1]

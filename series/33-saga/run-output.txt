@@ -2,10 +2,17 @@
 --- naive (payment fails → inventory leak) ---
 naiveBooked=false
 naiveReserved=[N1]
---- saga happy path ---
+--- orchestration happy path ---
 booked=true
 log=[ok:reserve, ok:charge, ok:ship, committed]
---- saga fails at ship; compensates reverse ---
+--- orchestration fails at ship; compensates reverse ---
 booked=false
 log=[ok:reserve, ok:charge, abort:shipping:carrier_down, compensate:refund, compensate:release, rolled_back]
-reserved=[] charged=[] shipped=[]
+--- choreography happy path (event bus) ---
+booked=true
+log=[ok:reserve, react:payment-on-reserved, ok:charge, react:ship-on-charged, ok:ship, committed]
+events=[InventoryReserved, PaymentCharged, ShipmentCreated]
+--- choreography fails at charge; compensates ---
+booked=false
+log=[ok:reserve, react:payment-on-reserved, abort:charge:card_declined, compensate:release, rolled_back]
+reserved=[] charged=[]

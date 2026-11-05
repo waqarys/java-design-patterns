@@ -1,6 +1,6 @@
 # Dependency Injection
 
-**Season:** 4 · Enterprise · **Category:** Enterprise · **Level:** Intermediate · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar
+**Season:** 4 · Enterprise · **Category:** Enterprise · **Level:** Intermediate · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar
 
 ## Problem
 **Wire Greeter without hard `new` in controllers**
@@ -24,19 +24,15 @@ failure, or couple call sites to a third-party shape. That feels fast on day one
 on day thirty.
 
 ```java
-package com.buildwithwaqar.patterns.enterprise.di;
+package com.buildwithwaqar.patterns.enterprise.di.problem;
 
-import com.buildwithwaqar.patterns.enterprise.di.*;
-/** Problem: wire Greeter without hard-coding FriendlyGreeter in controllers. */
-public final class UseCaseDemo {
-  public static void main(String[] a) {
-    System.out.println("=== DI problem: wire greeter ===");
-    var c = new DiContainer();
-    c.singleton(Greeter.class, FriendlyGreeter::new);
-    System.out.println(c.get(Greeter.class).greet("Waqar"));
-    System.out.println("same=" + (c.get(Greeter.class) == c.get(Greeter.class)));
-  }
+import java.util.*;
+
+public final class NaiveController {
+  public String hello(String name){ return new GreeterHard().greet(name); }
 }
+final class GreeterHard { String greet(String n){ return "hi "+n; } }
+
 
 ```
 
@@ -61,54 +57,43 @@ or distributed details behind it.
 
 ### Stage 2 — Encode the solution
 ```java
-package com.buildwithwaqar.patterns.enterprise.di;
+package com.buildwithwaqar.patterns.enterprise.di.problem;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Objects;
-import java.util.function.Supplier;
-
-/** Tiny DI / service locator for demos — prefer a real container in production. */
-public final class DiContainer {
-    private final Map<Class<?>, Supplier<?>> factories = new HashMap<>();
-    private final Map<Class<?>, Object> singletons = new HashMap<>();
-
-    public <T> void bind(Class<T> type, Supplier<? extends T> factory) {
-        factories.put(type, factory);
-    }
-
-    public <T> void singleton(Class<T> type, Supplier<? extends T> factory) {
-        factories.put(type, () -> singletons.computeIfAbsent(type, k -> factory.get()));
-    }
-
-    @SuppressWarnings("unchecked")
-    public <T> T get(Class<T> type) {
-        var f = factories.get(type);
-        if (f == null) throw new IllegalArgumentException("unbound " + type.getName());
-        return (T) Objects.requireNonNull(f.get());
-    }
-}
+import java.util.*;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.*;
+import java.util.concurrent.locks.*;
+import java.util.function.*;
 
 interface Greeter { String greet(String name); }
-record FriendlyGreeter() implements Greeter {
-    public String greet(String name) { return "hello " + name; }
+final class FormalGreeter implements Greeter { public String greet(String n){ return "Hello, "+n; } }
+final class DiContainer {
+  private final Map<Class<?>, Object> beans=new HashMap<>();
+  <T> void register(Class<T> type, T impl){ beans.put(type, impl); }
+  @SuppressWarnings("unchecked") <T> T get(Class<T> type){
+    Object o=beans.get(type); if(o==null) throw new IllegalStateException("missing "+type.getSimpleName()); return (T)o;
+  }
+}
+final class HelloController {
+  private final Greeter greeter; HelloController(Greeter g){ greeter=g; }
+  String hello(String name){ return greeter.greet(name); }
 }
 
 ```
 
 ### Stage 3 — Runnable main
 ```java
-package com.buildwithwaqar.patterns.enterprise.di;
-
-import com.buildwithwaqar.patterns.enterprise.di.*;
-/** Problem: wire Greeter without hard-coding FriendlyGreeter in controllers. */
-public final class UseCaseDemo {
-  public static void main(String[] a) {
-    System.out.println("=== DI problem: wire greeter ===");
-    var c = new DiContainer();
-    c.singleton(Greeter.class, FriendlyGreeter::new);
-    System.out.println(c.get(Greeter.class).greet("Waqar"));
-    System.out.println("same=" + (c.get(Greeter.class) == c.get(Greeter.class)));
+package com.buildwithwaqar.patterns.enterprise.di.problem;
+import java.util.*; import java.util.concurrent.*;
+public final class ProblemDemo {
+  public static void main(String[] args) throws Exception {
+    System.out.println("=== DI: wire Greeter without hard new ===");
+    System.out.println("--- naive ---"); System.out.println(new NaiveController().hello("Ada"));
+System.out.println("--- DI ---");
+var c=new DiContainer(); c.register(Greeter.class, new FormalGreeter());
+var ctl=new HelloController(c.get(Greeter.class));
+System.out.println(ctl.hello("Ada"));
+try { new DiContainer().get(Greeter.class); } catch (IllegalStateException e){ System.out.println("caught="+e.getMessage()); }
   }
 }
 
@@ -118,9 +103,12 @@ public final class UseCaseDemo {
 Narrate each line. Do not invent numbers on camera.
 
 ```text
-=== DI problem: wire greeter ===
-hello Waqar
-same=true
+=== DI: wire Greeter without hard new ===
+--- naive ---
+hi Ada
+--- DI ---
+Hello, Ada
+caught=missing Greeter
 ```
 
 Trace: match each printed line to a stage above. Fork the repo, set `JAVA_HOME` to JDK 25,
@@ -202,65 +190,3 @@ Java 25 / Zazr take, then slow down for when NOT to use DI.
 **[10:30]** *(interview + recap)*
 Two interview questions, three takeaways, link the GitHub episode folder. I am Waqar —
 see you in the next one.
-
-
-## Studio Notes for Build with Waqar
-When you record this episode, keep the energy practical. Start with the product pain, not the pattern name. Viewers stay when they feel the bug before they learn the label. In CapCut, overlay the slide number in the corner and cut idle IDE scrolling. If a code block is long, zoom CapCut to the highlighted lines rather than shrinking the font on the slide. Re-run the Demo live once if your machine allows — viewers trust a terminal more than a screenshot. Finally, end with a single actionable challenge: ask them to open the repo, run the Demo, and mutate one assertion in the test to see the failure. That turns passive watching into practice.
-
-### CapCut Checklist
-- Import `slides.pdf` or the PNG sequence at 1920×1080.
-- Align voiceover to the timestamps in the Video Script section.
-- Keep lower-thirds short: pattern name + one-line intent.
-- Add a pinned comment with the GitHub path to this episode folder.
-
-### Common Recording Mistakes
-- Reading UML without showing running output.
-- Skipping the "when NOT to use" section — that is what seniors listen for.
-- Rushing trade-offs. Slow down here; it is interview gold.
-- Forgetting to mention the test class name so learners can `mvn -Dtest=... test`.
-
-
-## Practice Drill (Do This After Watching)
-1. Clone `waqarys/java-design-patterns` and set `JAVA_HOME` to JDK 25.
-2. Run the episode Demo (`mvn -q exec:java -Dexec.mainClass=...` or `java -cp ... Demo`).
-3. Break the implementation on purpose; watch the test fail; restore it.
-4. Write one alternative design in a scratch branch and compare readability.
-5. Explain the pattern out loud in sixty seconds without looking at notes — that is your introspective for interviews.
-
-## Glossary
-- **Force:** the design pressure (extensibility, coupling, allocation, testability) that makes a pattern worth considering.
-- **Role:** a participant name from the pattern (Context, Strategy, Client, Creator, Product).
-- **Smell:** a code signal that a force is unresolved (telescoping constructors, instanceof forests, god classes).
-- **Modernization:** the Java 25 / Zazr encoding that preserves the force-resolution with less ceremony.
-
-
-## Problem Deep Dive
-The concrete problem for this episode is: **Wire Greeter without hard `new` in controllers**.
-
-Walk the naive path slowly on camera. Ask viewers what breaks first when requirements change —
-a new file to load, a new payment currency, a new saga step, a new illegal state transition.
-That question is the force. The pattern is just the name we give the force once we have felt it.
-
-Then open the solution types and show the boundary: what the rest of the app is allowed to
-depend on, and what stays hidden. Highlight how the runnable main prints a meaningful trace —
-happy path and at least one failure path — so CapCut can cut between IDE and terminal without
-inventing numbers.
-
-Finally, spend a full minute on trade-offs. Seniors stay for the "when not". Juniors need the
-happy path. Your job on Build with Waqar is both.
-
-
-## Studio Notes for Build with Waqar
-When you record this episode, keep the energy practical. Start with the product pain, not the pattern name. Viewers stay when they feel the bug before they learn the label. In CapCut, overlay the slide number in the corner and cut idle IDE scrolling. If a code block is long, zoom CapCut to the highlighted lines rather than shrinking the font on the slide. Re-run the Demo live once if your machine allows — viewers trust a terminal more than a screenshot. Finally, end with a single actionable challenge: ask them to open the repo, run the Demo, and mutate one assertion in the test to see the failure. That turns passive watching into practice.
-
-### CapCut Checklist
-- Import `slides.pdf` or the PNG sequence at 1920×1080.
-- Align voiceover to the timestamps in the Video Script section.
-- Keep lower-thirds short: pattern name + one-line intent.
-- Add a pinned comment with the GitHub path to this episode folder.
-
-### Common Recording Mistakes
-- Reading UML without showing running output.
-- Skipping the "when NOT to use" section — that is what seniors listen for.
-- Rushing trade-offs. Slow down here; it is interview gold.
-- Forgetting to mention the test class name so learners can `mvn -Dtest=... test`.

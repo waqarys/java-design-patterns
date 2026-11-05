@@ -1,6 +1,6 @@
 # Null Object
 
-**Season:** 4 · Enterprise · **Category:** Enterprise · **Level:** Intermediate · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar
+**Season:** 4 · Enterprise · **Category:** Enterprise · **Level:** Intermediate · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar
 
 ## Problem
 **Safe logger when monitoring disabled**
@@ -24,18 +24,13 @@ failure, or couple call sites to a third-party shape. That feels fast on day one
 on day thirty.
 
 ```java
-package com.buildwithwaqar.patterns.enterprise.nullobject;
+package com.buildwithwaqar.patterns.enterprise.nullobject.problem;
 
-import com.buildwithwaqar.patterns.enterprise.nullobject.*;
-/** Problem: disable logging without null checks at every call site. */
-public final class UseCaseDemo {
-  public static void main(String[] a) {
-    System.out.println("=== Null Object problem: optional logger ===");
-    System.out.println(new OrderService(null).place("o1"));
-    var sink = new StringBuilder();
-    System.out.println(new OrderService(new ConsoleLogger(sink)).place("o2"));
-    System.out.println("log=" + sink.toString().trim());
-  }
+/** Naive: logger may be null — every call site null-checks. */
+public final class NaiveOrderService {
+  private final Logger log;
+  public NaiveOrderService(Logger log){ this.log=log; }
+  public void place(String id){ if(log!=null) log.info("placed "+id); }
 }
 
 ```
@@ -61,52 +56,39 @@ or distributed details behind it.
 
 ### Stage 2 — Encode the solution
 ```java
-package com.buildwithwaqar.patterns.enterprise.nullobject;
+package com.buildwithwaqar.patterns.enterprise.nullobject.problem;
 
-interface Logger {
-    void info(String msg);
-}
+import java.util.*;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.*;
+import java.util.concurrent.locks.*;
+import java.util.function.*;
 
-final class ConsoleLogger implements Logger {
-    private final StringBuilder sink;
-    ConsoleLogger(StringBuilder sink) { this.sink = sink; }
-    public void info(String msg) { sink.append(msg).append('\n'); }
-}
-
-final class NullLogger implements Logger {
-    static final NullLogger INSTANCE = new NullLogger();
-    public void info(String msg) { /* no-op */ }
-}
-
-/** Prefer Null Object over null checks at call sites. */
-public final class OrderService {
-    private final Logger logger;
-
-    public OrderService(Logger logger) {
-        this.logger = logger == null ? NullLogger.INSTANCE : logger;
-    }
-
-    public String place(String id) {
-        logger.info("placing " + id);
-        return "ok:" + id;
-    }
+interface Logger { void info(String m); }
+final class ConsoleLogger implements Logger { private final List<String> lines=new ArrayList<>();
+  public void info(String m){ lines.add(m); } List<String> lines(){ return List.copyOf(lines); } }
+final class NullLogger implements Logger { public void info(String m){ /* no-op */ } }
+final class OrderService {
+  private final Logger log; OrderService(Logger log){ this.log=Objects.requireNonNull(log); }
+  void place(String id){ log.info("placed "+id); }
 }
 
 ```
 
 ### Stage 3 — Runnable main
 ```java
-package com.buildwithwaqar.patterns.enterprise.nullobject;
-
-import com.buildwithwaqar.patterns.enterprise.nullobject.*;
-/** Problem: disable logging without null checks at every call site. */
-public final class UseCaseDemo {
-  public static void main(String[] a) {
-    System.out.println("=== Null Object problem: optional logger ===");
-    System.out.println(new OrderService(null).place("o1"));
-    var sink = new StringBuilder();
-    System.out.println(new OrderService(new ConsoleLogger(sink)).place("o2"));
-    System.out.println("log=" + sink.toString().trim());
+package com.buildwithwaqar.patterns.enterprise.nullobject.problem;
+import java.util.*; import java.util.concurrent.*;
+public final class ProblemDemo {
+  public static void main(String[] args) throws Exception {
+    System.out.println("=== Null Object: safe logger ===");
+    System.out.println("--- naive null check ---");
+new NaiveOrderService(null).place("o1");
+System.out.println("--- null object ---");
+var console=new ConsoleLogger();
+new OrderService(console).place("o1");
+new OrderService(new NullLogger()).place("o2");
+System.out.println(console.lines());
   }
 }
 
@@ -116,10 +98,10 @@ public final class UseCaseDemo {
 Narrate each line. Do not invent numbers on camera.
 
 ```text
-=== Null Object problem: optional logger ===
-ok:o1
-ok:o2
-log=placing o2
+=== Null Object: safe logger ===
+--- naive null check ---
+--- null object ---
+[placed o1]
 ```
 
 Trace: match each printed line to a stage above. Fork the repo, set `JAVA_HOME` to JDK 25,
@@ -201,65 +183,3 @@ Java 25 / Zazr take, then slow down for when NOT to use Null Object.
 **[10:30]** *(interview + recap)*
 Two interview questions, three takeaways, link the GitHub episode folder. I am Waqar —
 see you in the next one.
-
-
-## Studio Notes for Build with Waqar
-When you record this episode, keep the energy practical. Start with the product pain, not the pattern name. Viewers stay when they feel the bug before they learn the label. In CapCut, overlay the slide number in the corner and cut idle IDE scrolling. If a code block is long, zoom CapCut to the highlighted lines rather than shrinking the font on the slide. Re-run the Demo live once if your machine allows — viewers trust a terminal more than a screenshot. Finally, end with a single actionable challenge: ask them to open the repo, run the Demo, and mutate one assertion in the test to see the failure. That turns passive watching into practice.
-
-### CapCut Checklist
-- Import `slides.pdf` or the PNG sequence at 1920×1080.
-- Align voiceover to the timestamps in the Video Script section.
-- Keep lower-thirds short: pattern name + one-line intent.
-- Add a pinned comment with the GitHub path to this episode folder.
-
-### Common Recording Mistakes
-- Reading UML without showing running output.
-- Skipping the "when NOT to use" section — that is what seniors listen for.
-- Rushing trade-offs. Slow down here; it is interview gold.
-- Forgetting to mention the test class name so learners can `mvn -Dtest=... test`.
-
-
-## Practice Drill (Do This After Watching)
-1. Clone `waqarys/java-design-patterns` and set `JAVA_HOME` to JDK 25.
-2. Run the episode Demo (`mvn -q exec:java -Dexec.mainClass=...` or `java -cp ... Demo`).
-3. Break the implementation on purpose; watch the test fail; restore it.
-4. Write one alternative design in a scratch branch and compare readability.
-5. Explain the pattern out loud in sixty seconds without looking at notes — that is your introspective for interviews.
-
-## Glossary
-- **Force:** the design pressure (extensibility, coupling, allocation, testability) that makes a pattern worth considering.
-- **Role:** a participant name from the pattern (Context, Strategy, Client, Creator, Product).
-- **Smell:** a code signal that a force is unresolved (telescoping constructors, instanceof forests, god classes).
-- **Modernization:** the Java 25 / Zazr encoding that preserves the force-resolution with less ceremony.
-
-
-## Problem Deep Dive
-The concrete problem for this episode is: **Safe logger when monitoring disabled**.
-
-Walk the naive path slowly on camera. Ask viewers what breaks first when requirements change —
-a new file to load, a new payment currency, a new saga step, a new illegal state transition.
-That question is the force. The pattern is just the name we give the force once we have felt it.
-
-Then open the solution types and show the boundary: what the rest of the app is allowed to
-depend on, and what stays hidden. Highlight how the runnable main prints a meaningful trace —
-happy path and at least one failure path — so CapCut can cut between IDE and terminal without
-inventing numbers.
-
-Finally, spend a full minute on trade-offs. Seniors stay for the "when not". Juniors need the
-happy path. Your job on Build with Waqar is both.
-
-
-## Studio Notes for Build with Waqar
-When you record this episode, keep the energy practical. Start with the product pain, not the pattern name. Viewers stay when they feel the bug before they learn the label. In CapCut, overlay the slide number in the corner and cut idle IDE scrolling. If a code block is long, zoom CapCut to the highlighted lines rather than shrinking the font on the slide. Re-run the Demo live once if your machine allows — viewers trust a terminal more than a screenshot. Finally, end with a single actionable challenge: ask them to open the repo, run the Demo, and mutate one assertion in the test to see the failure. That turns passive watching into practice.
-
-### CapCut Checklist
-- Import `slides.pdf` or the PNG sequence at 1920×1080.
-- Align voiceover to the timestamps in the Video Script section.
-- Keep lower-thirds short: pattern name + one-line intent.
-- Add a pinned comment with the GitHub path to this episode folder.
-
-### Common Recording Mistakes
-- Reading UML without showing running output.
-- Skipping the "when NOT to use" section — that is what seniors listen for.
-- Rushing trade-offs. Slow down here; it is interview gold.
-- Forgetting to mention the test class name so learners can `mvn -Dtest=... test`.

@@ -1,6 +1,6 @@
 # Retry
 
-**Season:** 4 · Enterprise · **Category:** Enterprise · **Level:** Intermediate · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar
+**Season:** 4 · Enterprise · **Category:** Enterprise · **Level:** Intermediate · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar
 
 ## Problem
 **Publish event despite transient broker errors**
@@ -24,22 +24,12 @@ failure, or couple call sites to a third-party shape. That feels fast on day one
 on day thirty.
 
 ```java
-package com.buildwithwaqar.patterns.enterprise.retry;
+package com.buildwithwaqar.patterns.enterprise.retry.problem;
 
-import com.buildwithwaqar.patterns.enterprise.retry.Retry;
-import java.util.concurrent.atomic.AtomicInteger;
-/** Problem: publish to a flaky broker without failing the request on first blip. */
-public final class UseCaseDemo {
-  public static void main(String[] a) throws Exception {
-    System.out.println("=== Retry problem: flaky broker publish ===");
-    var n = new AtomicInteger();
-    var retry = new Retry(3, e -> e instanceof IllegalStateException);
-    System.out.println("result=" + retry.execute(() -> {
-      if (n.incrementAndGet() < 3) throw new IllegalStateException("timeout");
-      return "PUBLISHED";
-    }));
-    System.out.println("attempts=" + n.get());
-  }
+import java.util.function.Supplier;
+
+public final class NaivePublish {
+  public static String once(Supplier<String> s){ return s.get(); }
 }
 
 ```
@@ -65,53 +55,41 @@ or distributed details behind it.
 
 ### Stage 2 — Encode the solution
 ```java
-package com.buildwithwaqar.patterns.enterprise.retry;
+package com.buildwithwaqar.patterns.enterprise.retry.problem;
 
-import java.util.concurrent.Callable;
-import java.util.function.Predicate;
+import java.util.*;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.*;
+import java.util.concurrent.locks.*;
+import java.util.function.*;
 
-public final class Retry {
-    private final int maxAttempts;
-    private final Predicate<Exception> retryOn;
-
-    public Retry(int maxAttempts, Predicate<Exception> retryOn) {
-        this.maxAttempts = maxAttempts;
-        this.retryOn = retryOn;
+final class Retry {
+  static String call(int maxAttempts, Supplier<String> action){
+    RuntimeException last=null;
+    for (int i=1;i<=maxAttempts;i++){
+      try { return action.get(); } catch (RuntimeException e){ last=e; }
     }
-
-    public <T> T execute(Callable<T> action) throws Exception {
-        Exception last = null;
-        for (int i = 1; i <= maxAttempts; i++) {
-            try {
-                return action.call();
-            } catch (Exception e) {
-                last = e;
-                if (i == maxAttempts || !retryOn.test(e)) throw e;
-            }
-        }
-        throw last;
-    }
+    throw last;
+  }
 }
 
 ```
 
 ### Stage 3 — Runnable main
 ```java
-package com.buildwithwaqar.patterns.enterprise.retry;
+package com.buildwithwaqar.patterns.enterprise.retry.problem;
 
-import com.buildwithwaqar.patterns.enterprise.retry.Retry;
 import java.util.concurrent.atomic.AtomicInteger;
-/** Problem: publish to a flaky broker without failing the request on first blip. */
-public final class UseCaseDemo {
-  public static void main(String[] a) throws Exception {
-    System.out.println("=== Retry problem: flaky broker publish ===");
-    var n = new AtomicInteger();
-    var retry = new Retry(3, e -> e instanceof IllegalStateException);
-    System.out.println("result=" + retry.execute(() -> {
-      if (n.incrementAndGet() < 3) throw new IllegalStateException("timeout");
-      return "PUBLISHED";
-    }));
-    System.out.println("attempts=" + n.get());
+
+public final class ProblemDemo {
+  public static void main(String[] args) {
+    System.out.println("=== Retry: transient broker errors ===");
+    System.out.println("--- naive ---");
+    try { NaivePublish.once(() -> { throw new RuntimeException("broker"); }); } catch(Exception e){ System.out.println("caught="+e.getMessage()); }
+    System.out.println("--- retry ---");
+    AtomicInteger n=new AtomicInteger();
+    System.out.println(Retry.call(3, () -> { if(n.incrementAndGet()<3) throw new RuntimeException("broker"); return "published"; }));
+    try { Retry.call(2, () -> { throw new RuntimeException("still"); }); } catch(RuntimeException e){ System.out.println("caught="+e.getMessage()); }
   }
 }
 
@@ -121,9 +99,12 @@ public final class UseCaseDemo {
 Narrate each line. Do not invent numbers on camera.
 
 ```text
-=== Retry problem: flaky broker publish ===
-result=PUBLISHED
-attempts=3
+=== Retry: transient broker errors ===
+--- naive ---
+caught=broker
+--- retry ---
+published
+caught=still
 ```
 
 Trace: match each printed line to a stage above. Fork the repo, set `JAVA_HOME` to JDK 25,
@@ -205,65 +186,3 @@ Java 25 / Zazr take, then slow down for when NOT to use Retry.
 **[10:30]** *(interview + recap)*
 Two interview questions, three takeaways, link the GitHub episode folder. I am Waqar —
 see you in the next one.
-
-
-## Studio Notes for Build with Waqar
-When you record this episode, keep the energy practical. Start with the product pain, not the pattern name. Viewers stay when they feel the bug before they learn the label. In CapCut, overlay the slide number in the corner and cut idle IDE scrolling. If a code block is long, zoom CapCut to the highlighted lines rather than shrinking the font on the slide. Re-run the Demo live once if your machine allows — viewers trust a terminal more than a screenshot. Finally, end with a single actionable challenge: ask them to open the repo, run the Demo, and mutate one assertion in the test to see the failure. That turns passive watching into practice.
-
-### CapCut Checklist
-- Import `slides.pdf` or the PNG sequence at 1920×1080.
-- Align voiceover to the timestamps in the Video Script section.
-- Keep lower-thirds short: pattern name + one-line intent.
-- Add a pinned comment with the GitHub path to this episode folder.
-
-### Common Recording Mistakes
-- Reading UML without showing running output.
-- Skipping the "when NOT to use" section — that is what seniors listen for.
-- Rushing trade-offs. Slow down here; it is interview gold.
-- Forgetting to mention the test class name so learners can `mvn -Dtest=... test`.
-
-
-## Practice Drill (Do This After Watching)
-1. Clone `waqarys/java-design-patterns` and set `JAVA_HOME` to JDK 25.
-2. Run the episode Demo (`mvn -q exec:java -Dexec.mainClass=...` or `java -cp ... Demo`).
-3. Break the implementation on purpose; watch the test fail; restore it.
-4. Write one alternative design in a scratch branch and compare readability.
-5. Explain the pattern out loud in sixty seconds without looking at notes — that is your introspective for interviews.
-
-## Glossary
-- **Force:** the design pressure (extensibility, coupling, allocation, testability) that makes a pattern worth considering.
-- **Role:** a participant name from the pattern (Context, Strategy, Client, Creator, Product).
-- **Smell:** a code signal that a force is unresolved (telescoping constructors, instanceof forests, god classes).
-- **Modernization:** the Java 25 / Zazr encoding that preserves the force-resolution with less ceremony.
-
-
-## Problem Deep Dive
-The concrete problem for this episode is: **Publish event despite transient broker errors**.
-
-Walk the naive path slowly on camera. Ask viewers what breaks first when requirements change —
-a new file to load, a new payment currency, a new saga step, a new illegal state transition.
-That question is the force. The pattern is just the name we give the force once we have felt it.
-
-Then open the solution types and show the boundary: what the rest of the app is allowed to
-depend on, and what stays hidden. Highlight how the runnable main prints a meaningful trace —
-happy path and at least one failure path — so CapCut can cut between IDE and terminal without
-inventing numbers.
-
-Finally, spend a full minute on trade-offs. Seniors stay for the "when not". Juniors need the
-happy path. Your job on Build with Waqar is both.
-
-
-## Studio Notes for Build with Waqar
-When you record this episode, keep the energy practical. Start with the product pain, not the pattern name. Viewers stay when they feel the bug before they learn the label. In CapCut, overlay the slide number in the corner and cut idle IDE scrolling. If a code block is long, zoom CapCut to the highlighted lines rather than shrinking the font on the slide. Re-run the Demo live once if your machine allows — viewers trust a terminal more than a screenshot. Finally, end with a single actionable challenge: ask them to open the repo, run the Demo, and mutate one assertion in the test to see the failure. That turns passive watching into practice.
-
-### CapCut Checklist
-- Import `slides.pdf` or the PNG sequence at 1920×1080.
-- Align voiceover to the timestamps in the Video Script section.
-- Keep lower-thirds short: pattern name + one-line intent.
-- Add a pinned comment with the GitHub path to this episode folder.
-
-### Common Recording Mistakes
-- Reading UML without showing running output.
-- Skipping the "when NOT to use" section — that is what seniors listen for.
-- Rushing trade-offs. Slow down here; it is interview gold.
-- Forgetting to mention the test class name so learners can `mvn -Dtest=... test`.

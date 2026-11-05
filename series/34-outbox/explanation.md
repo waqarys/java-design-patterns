@@ -1,6 +1,6 @@
 # Transactional Outbox
 
-**Season:** 4 · Enterprise · **Category:** Enterprise · **Level:** Intermediate · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar
+**Season:** 4 · Enterprise · **Category:** Enterprise · **Level:** Intermediate · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar
 
 ## Problem
 **Atomically save order + outbox row, relay later**
@@ -24,19 +24,12 @@ failure, or couple call sites to a third-party shape. That feels fast on day one
 on day thirty.
 
 ```java
-package com.buildwithwaqar.patterns.enterprise.outbox;
+package com.buildwithwaqar.patterns.enterprise.outbox.problem;
 
-import com.buildwithwaqar.patterns.enterprise.outbox.Outbox;
-/** Problem: never lose domain events when the broker is down — persist then relay. */
-public final class UseCaseDemo {
-  public static void main(String[] a) {
-    System.out.println("=== Outbox problem: reliable publish ===");
-    var o = new Outbox();
-    o.placeOrder("ord-1", "{\"sku\":\"course\"}");
-    System.out.println("unpublished=" + o.unpublished().size());
-    o.publishDue();
-    System.out.println("afterRelay=" + o.unpublished().size() + " orders=" + o.orders());
-  }
+import java.util.*;
+
+public final class NaiveOrderPub {
+  public static void place(String id){ /* save order */ System.out.println("saved "+id); /* publish may fail after */ throw new RuntimeException("broker down"); }
 }
 
 ```
@@ -62,55 +55,47 @@ or distributed details behind it.
 
 ### Stage 2 — Encode the solution
 ```java
-package com.buildwithwaqar.patterns.enterprise.outbox;
+package com.buildwithwaqar.patterns.enterprise.outbox.problem;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.*;
+import java.util.concurrent.locks.*;
+import java.util.function.*;
 
-record OutboxMessage(String id, String topic, String payload, boolean published) {
-    OutboxMessage markPublished() { return new OutboxMessage(id, topic, payload, true); }
+record OutboxRow(String id, String payload, boolean published){}
+final class OutboxStore {
+  private final List<OutboxRow> rows=new ArrayList<>();
+  private final List<String> orders=new ArrayList<>();
+  void placeOrder(String id, String payload){ orders.add(id); rows.add(new OutboxRow(id, payload, false)); }
+  List<OutboxRow> unpublished(){ return rows.stream().filter(r->!r.published()).toList(); }
+  void markPublished(String id){
+    for (int i=0;i<rows.size();i++) if(rows.get(i).id().equals(id)) rows.set(i, new OutboxRow(id, rows.get(i).payload(), true));
+  }
+  List<String> orders(){ return List.copyOf(orders); }
 }
-
-/** Transactional outbox — persist business row + message atomically, publish async. */
-public final class Outbox {
-    private final List<String> orders = new ArrayList<>();
-    private final List<OutboxMessage> messages = new ArrayList<>();
-
-    public synchronized void placeOrder(String orderId, String payload) {
-        orders.add(orderId);
-        messages.add(new OutboxMessage(orderId, "orders", payload, false));
-    }
-
-    public synchronized List<OutboxMessage> unpublished() {
-        return messages.stream().filter(m -> !m.published()).toList();
-    }
-
-    public synchronized void publishDue() {
-        for (int i = 0; i < messages.size(); i++) {
-            var m = messages.get(i);
-            if (!m.published()) messages.set(i, m.markPublished());
-        }
-    }
-
-    public List<String> orders() { return List.copyOf(orders); }
+final class OutboxRelay {
+  private final OutboxStore store; private final List<String> published=new ArrayList<>();
+  OutboxRelay(OutboxStore store){ this.store=store; }
+  int relayOnce(){ int n=0; for(var r: store.unpublished()){ published.add(r.payload()); store.markPublished(r.id()); n++; } return n; }
+  List<String> published(){ return List.copyOf(published); }
 }
 
 ```
 
 ### Stage 3 — Runnable main
 ```java
-package com.buildwithwaqar.patterns.enterprise.outbox;
-
-import com.buildwithwaqar.patterns.enterprise.outbox.Outbox;
-/** Problem: never lose domain events when the broker is down — persist then relay. */
-public final class UseCaseDemo {
-  public static void main(String[] a) {
-    System.out.println("=== Outbox problem: reliable publish ===");
-    var o = new Outbox();
-    o.placeOrder("ord-1", "{\"sku\":\"course\"}");
-    System.out.println("unpublished=" + o.unpublished().size());
-    o.publishDue();
-    System.out.println("afterRelay=" + o.unpublished().size() + " orders=" + o.orders());
+package com.buildwithwaqar.patterns.enterprise.outbox.problem;
+import java.util.*; import java.util.concurrent.*;
+public final class ProblemDemo {
+  public static void main(String[] args) throws Exception {
+    System.out.println("=== Outbox: order + event atomically ===");
+    System.out.println("--- naive ---");
+try { NaiveOrderPub.place("o1"); } catch(Exception e){ System.out.println("caught="+e.getMessage()); }
+System.out.println("--- outbox ---");
+var store=new OutboxStore(); store.placeOrder("o1","OrderPlaced:o1");
+var relay=new OutboxRelay(store); System.out.println("relayed="+relay.relayOnce()); System.out.println("published="+relay.published());
+System.out.println("relayedAgain="+relay.relayOnce());
   }
 }
 
@@ -120,9 +105,14 @@ public final class UseCaseDemo {
 Narrate each line. Do not invent numbers on camera.
 
 ```text
-=== Outbox problem: reliable publish ===
-unpublished=1
-afterRelay=0 orders=[ord-1]
+=== Outbox: order + event atomically ===
+--- naive ---
+saved o1
+caught=broker down
+--- outbox ---
+relayed=1
+published=[OrderPlaced:o1]
+relayedAgain=0
 ```
 
 Trace: match each printed line to a stage above. Fork the repo, set `JAVA_HOME` to JDK 25,
@@ -204,65 +194,3 @@ Java 25 / Zazr take, then slow down for when NOT to use Outbox.
 **[10:30]** *(interview + recap)*
 Two interview questions, three takeaways, link the GitHub episode folder. I am Waqar —
 see you in the next one.
-
-
-## Studio Notes for Build with Waqar
-When you record this episode, keep the energy practical. Start with the product pain, not the pattern name. Viewers stay when they feel the bug before they learn the label. In CapCut, overlay the slide number in the corner and cut idle IDE scrolling. If a code block is long, zoom CapCut to the highlighted lines rather than shrinking the font on the slide. Re-run the Demo live once if your machine allows — viewers trust a terminal more than a screenshot. Finally, end with a single actionable challenge: ask them to open the repo, run the Demo, and mutate one assertion in the test to see the failure. That turns passive watching into practice.
-
-### CapCut Checklist
-- Import `slides.pdf` or the PNG sequence at 1920×1080.
-- Align voiceover to the timestamps in the Video Script section.
-- Keep lower-thirds short: pattern name + one-line intent.
-- Add a pinned comment with the GitHub path to this episode folder.
-
-### Common Recording Mistakes
-- Reading UML without showing running output.
-- Skipping the "when NOT to use" section — that is what seniors listen for.
-- Rushing trade-offs. Slow down here; it is interview gold.
-- Forgetting to mention the test class name so learners can `mvn -Dtest=... test`.
-
-
-## Practice Drill (Do This After Watching)
-1. Clone `waqarys/java-design-patterns` and set `JAVA_HOME` to JDK 25.
-2. Run the episode Demo (`mvn -q exec:java -Dexec.mainClass=...` or `java -cp ... Demo`).
-3. Break the implementation on purpose; watch the test fail; restore it.
-4. Write one alternative design in a scratch branch and compare readability.
-5. Explain the pattern out loud in sixty seconds without looking at notes — that is your introspective for interviews.
-
-## Glossary
-- **Force:** the design pressure (extensibility, coupling, allocation, testability) that makes a pattern worth considering.
-- **Role:** a participant name from the pattern (Context, Strategy, Client, Creator, Product).
-- **Smell:** a code signal that a force is unresolved (telescoping constructors, instanceof forests, god classes).
-- **Modernization:** the Java 25 / Zazr encoding that preserves the force-resolution with less ceremony.
-
-
-## Problem Deep Dive
-The concrete problem for this episode is: **Atomically save order + outbox row, relay later**.
-
-Walk the naive path slowly on camera. Ask viewers what breaks first when requirements change —
-a new file to load, a new payment currency, a new saga step, a new illegal state transition.
-That question is the force. The pattern is just the name we give the force once we have felt it.
-
-Then open the solution types and show the boundary: what the rest of the app is allowed to
-depend on, and what stays hidden. Highlight how the runnable main prints a meaningful trace —
-happy path and at least one failure path — so CapCut can cut between IDE and terminal without
-inventing numbers.
-
-Finally, spend a full minute on trade-offs. Seniors stay for the "when not". Juniors need the
-happy path. Your job on Build with Waqar is both.
-
-
-## Studio Notes for Build with Waqar
-When you record this episode, keep the energy practical. Start with the product pain, not the pattern name. Viewers stay when they feel the bug before they learn the label. In CapCut, overlay the slide number in the corner and cut idle IDE scrolling. If a code block is long, zoom CapCut to the highlighted lines rather than shrinking the font on the slide. Re-run the Demo live once if your machine allows — viewers trust a terminal more than a screenshot. Finally, end with a single actionable challenge: ask them to open the repo, run the Demo, and mutate one assertion in the test to see the failure. That turns passive watching into practice.
-
-### CapCut Checklist
-- Import `slides.pdf` or the PNG sequence at 1920×1080.
-- Align voiceover to the timestamps in the Video Script section.
-- Keep lower-thirds short: pattern name + one-line intent.
-- Add a pinned comment with the GitHub path to this episode folder.
-
-### Common Recording Mistakes
-- Reading UML without showing running output.
-- Skipping the "when NOT to use" section — that is what seniors listen for.
-- Rushing trade-offs. Slow down here; it is interview gold.
-- Forgetting to mention the test class name so learners can `mvn -Dtest=... test`.
