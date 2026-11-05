@@ -1,6 +1,6 @@
 # Facade
 
-**Season:** 2 · Structural · **Category:** GoF · **Level:** Beginner · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar
+**Season:** 2 · Structural · **Category:** GoF · **Level:** Beginner · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar
 
 ## Problem
 **One placeOrder call over inventory+payment+shipping**
@@ -24,15 +24,16 @@ failure, or couple call sites to a third-party shape. That feels fast on day one
 on day thirty.
 
 ```java
-package com.buildwithwaqar.patterns.gof.structural.facade;
-import com.buildwithwaqar.patterns.gof.structural.facade.OrderFacade;
-/** Problem: place an order without teaching every caller inventory+payment+shipping APIs. */
-public final class UseCaseDemo {
-  public static void main(String[] a) {
-    System.out.println("=== Facade problem: one-call checkout ===");
-    var f = new OrderFacade();
-    System.out.println(f.placeOrder("sku-1", 1, "4111", 1500));
-    System.out.println(f.placeOrder("", 1, "4111", 1500));
+package com.buildwithwaqar.patterns.gof.structural.facade.problem;
+
+import java.util.*;
+
+public final class NaiveCheckout {
+  public static String place(String sku, int cents) {
+    // client calls three services itself
+    boolean inv = true; boolean pay = cents > 0; boolean ship = true;
+    if (!inv || !pay || !ship) return "FAIL";
+    return "OK:"+sku;
   }
 }
 
@@ -59,38 +60,45 @@ or distributed details behind it.
 
 ### Stage 2 — Encode the solution
 ```java
-package com.buildwithwaqar.patterns.gof.structural.facade;
+package com.buildwithwaqar.patterns.gof.structural.facade.problem;
 
-final class Inventory { boolean reserve(String sku, int qty) { return qty > 0 && !sku.isBlank(); } }
-final class PaymentGateway { boolean charge(String card, int cents) { return card != null && cents > 0; } }
-final class Shipping { String ship(String sku) { return "TRACK-" + sku; } }
+import java.util.*;
+import java.util.concurrent.*;
+import java.util.function.*;
 
-/** Simple interface over a noisy subsystem. */
-public final class OrderFacade {
-    private final Inventory inventory = new Inventory();
-    private final PaymentGateway payments = new PaymentGateway();
-    private final Shipping shipping = new Shipping();
-
-    public String placeOrder(String sku, int qty, String card, int cents) {
-        if (!inventory.reserve(sku, qty)) return "REJECTED:inventory";
-        if (!payments.charge(card, cents)) return "REJECTED:payment";
-        return "OK:" + shipping.ship(sku);
-    }
+final class Inventory { boolean reserve(String sku){ return sku!=null && !sku.isBlank(); } void release(String sku){} }
+final class Payments { boolean charge(int cents){ return cents>0; } }
+final class Shipping { boolean ship(String addr){ return addr!=null; } }
+final class OrderFacade {
+  private final Inventory inv=new Inventory();
+  private final Payments pay=new Payments();
+  private final Shipping ship=new Shipping();
+  String placeOrder(String sku, int cents, String addr){
+    if (!inv.reserve(sku)) return "FAIL:inventory";
+    if (!pay.charge(cents)) { inv.release(sku); return "FAIL:payment"; }
+    if (!ship.ship(addr)) return "FAIL:shipping";
+    return "OK:"+sku;
+  }
 }
 
 ```
 
 ### Stage 3 — Runnable main
 ```java
-package com.buildwithwaqar.patterns.gof.structural.facade;
-import com.buildwithwaqar.patterns.gof.structural.facade.OrderFacade;
-/** Problem: place an order without teaching every caller inventory+payment+shipping APIs. */
-public final class UseCaseDemo {
-  public static void main(String[] a) {
-    System.out.println("=== Facade problem: one-call checkout ===");
-    var f = new OrderFacade();
-    System.out.println(f.placeOrder("sku-1", 1, "4111", 1500));
-    System.out.println(f.placeOrder("", 1, "4111", 1500));
+package com.buildwithwaqar.patterns.gof.structural.facade.problem;
+
+import java.util.*;
+import java.util.concurrent.*;
+
+public final class ProblemDemo {
+  public static void main(String[] args) {
+    System.out.println("=== Facade: placeOrder over inventory+payment+shipping ===");
+    System.out.println("--- naive ---");
+System.out.println(NaiveCheckout.place("SKU", 100));
+System.out.println("--- facade ---");
+var f=new OrderFacade();
+System.out.println(f.placeOrder("SKU", 100, "X"));
+System.out.println(f.placeOrder("SKU", 0, "X"));
   }
 }
 
@@ -100,9 +108,12 @@ public final class UseCaseDemo {
 Narrate each line. Do not invent numbers on camera.
 
 ```text
-=== Facade problem: one-call checkout ===
-OK:TRACK-sku-1
-REJECTED:inventory
+=== Facade: placeOrder over inventory+payment+shipping ===
+--- naive ---
+OK:SKU
+--- facade ---
+OK:SKU
+FAIL:payment
 ```
 
 Trace: match each printed line to a stage above. Fork the repo, set `JAVA_HOME` to JDK 25,
@@ -184,65 +195,3 @@ Java 25 / Zazr take, then slow down for when NOT to use Facade.
 **[10:30]** *(interview + recap)*
 Two interview questions, three takeaways, link the GitHub episode folder. I am Waqar —
 see you in the next one.
-
-
-## Studio Notes for Build with Waqar
-When you record this episode, keep the energy practical. Start with the product pain, not the pattern name. Viewers stay when they feel the bug before they learn the label. In CapCut, overlay the slide number in the corner and cut idle IDE scrolling. If a code block is long, zoom CapCut to the highlighted lines rather than shrinking the font on the slide. Re-run the Demo live once if your machine allows — viewers trust a terminal more than a screenshot. Finally, end with a single actionable challenge: ask them to open the repo, run the Demo, and mutate one assertion in the test to see the failure. That turns passive watching into practice.
-
-### CapCut Checklist
-- Import `slides.pdf` or the PNG sequence at 1920×1080.
-- Align voiceover to the timestamps in the Video Script section.
-- Keep lower-thirds short: pattern name + one-line intent.
-- Add a pinned comment with the GitHub path to this episode folder.
-
-### Common Recording Mistakes
-- Reading UML without showing running output.
-- Skipping the "when NOT to use" section — that is what seniors listen for.
-- Rushing trade-offs. Slow down here; it is interview gold.
-- Forgetting to mention the test class name so learners can `mvn -Dtest=... test`.
-
-
-## Practice Drill (Do This After Watching)
-1. Clone `waqarys/java-design-patterns` and set `JAVA_HOME` to JDK 25.
-2. Run the episode Demo (`mvn -q exec:java -Dexec.mainClass=...` or `java -cp ... Demo`).
-3. Break the implementation on purpose; watch the test fail; restore it.
-4. Write one alternative design in a scratch branch and compare readability.
-5. Explain the pattern out loud in sixty seconds without looking at notes — that is your introspective for interviews.
-
-## Glossary
-- **Force:** the design pressure (extensibility, coupling, allocation, testability) that makes a pattern worth considering.
-- **Role:** a participant name from the pattern (Context, Strategy, Client, Creator, Product).
-- **Smell:** a code signal that a force is unresolved (telescoping constructors, instanceof forests, god classes).
-- **Modernization:** the Java 25 / Zazr encoding that preserves the force-resolution with less ceremony.
-
-
-## Problem Deep Dive
-The concrete problem for this episode is: **One placeOrder call over inventory+payment+shipping**.
-
-Walk the naive path slowly on camera. Ask viewers what breaks first when requirements change —
-a new file to load, a new payment currency, a new saga step, a new illegal state transition.
-That question is the force. The pattern is just the name we give the force once we have felt it.
-
-Then open the solution types and show the boundary: what the rest of the app is allowed to
-depend on, and what stays hidden. Highlight how the runnable main prints a meaningful trace —
-happy path and at least one failure path — so CapCut can cut between IDE and terminal without
-inventing numbers.
-
-Finally, spend a full minute on trade-offs. Seniors stay for the "when not". Juniors need the
-happy path. Your job on Build with Waqar is both.
-
-
-## Studio Notes for Build with Waqar
-When you record this episode, keep the energy practical. Start with the product pain, not the pattern name. Viewers stay when they feel the bug before they learn the label. In CapCut, overlay the slide number in the corner and cut idle IDE scrolling. If a code block is long, zoom CapCut to the highlighted lines rather than shrinking the font on the slide. Re-run the Demo live once if your machine allows — viewers trust a terminal more than a screenshot. Finally, end with a single actionable challenge: ask them to open the repo, run the Demo, and mutate one assertion in the test to see the failure. That turns passive watching into practice.
-
-### CapCut Checklist
-- Import `slides.pdf` or the PNG sequence at 1920×1080.
-- Align voiceover to the timestamps in the Video Script section.
-- Keep lower-thirds short: pattern name + one-line intent.
-- Add a pinned comment with the GitHub path to this episode folder.
-
-### Common Recording Mistakes
-- Reading UML without showing running output.
-- Skipping the "when NOT to use" section — that is what seniors listen for.
-- Rushing trade-offs. Slow down here; it is interview gold.
-- Forgetting to mention the test class name so learners can `mvn -Dtest=... test`.

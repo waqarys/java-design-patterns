@@ -1,6 +1,6 @@
 # Composite
 
-**Season:** 2 · Structural · **Category:** GoF · **Level:** Beginner · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar
+**Season:** 2 · Structural · **Category:** GoF · **Level:** Beginner · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar
 
 ## Problem
 **Compute total size of nested project folders**
@@ -24,17 +24,12 @@ failure, or couple call sites to a third-party shape. That feels fast on day one
 on day thirty.
 
 ```java
-package com.buildwithwaqar.patterns.gof.structural.composite;
-import com.buildwithwaqar.patterns.gof.structural.composite.*;
-/** Problem: total size of nested project directories. */
-public final class UseCaseDemo {
-  public static void main(String[] a) {
-    System.out.println("=== Composite problem: folder size ===");
-    var root = new DirectoryComposite("repo")
-      .add(new FileLeaf("README.md", 100))
-      .add(new DirectoryComposite("src").add(new FileLeaf("Main.java", 500)).add(new FileLeaf("Demo.java", 200)));
-    System.out.println("totalBytes=" + root.size());
-  }
+package com.buildwithwaqar.patterns.gof.structural.composite.problem;
+
+import java.util.*;
+
+public final class NaiveSize {
+  public static int total(Map<String,Integer> flat){ return flat.values().stream().mapToInt(i->i).sum(); }
 }
 
 ```
@@ -60,51 +55,38 @@ or distributed details behind it.
 
 ### Stage 2 — Encode the solution
 ```java
-package com.buildwithwaqar.patterns.gof.structural.composite;
+package com.buildwithwaqar.patterns.gof.structural.composite.problem;
 
-public sealed interface FileSystemNode permits FileLeaf, DirectoryComposite {
-    String name();
-    int size();
-}
+import java.util.*;
 
-
-package com.buildwithwaqar.patterns.gof.structural.composite;
-
-import java.util.ArrayList;
-import java.util.List;
-
-public final class DirectoryComposite implements FileSystemNode {
-    private final String name;
-    private final List<FileSystemNode> children = new ArrayList<>();
-
-    public DirectoryComposite(String name) { this.name = name; }
-
-    public DirectoryComposite add(FileSystemNode node) {
-        children.add(node);
-        return this;
-    }
-
-    @Override public String name() { return name; }
-
-    @Override public int size() {
-        return children.stream().mapToInt(FileSystemNode::size).sum();
-    }
+import java.util.*;
+sealed interface FsNode permits FileNode, DirNode { String name(); int size(); }
+record FileNode(String name, int size) implements FsNode {}
+final class DirNode implements FsNode {
+  private final String name; private final List<FsNode> kids = new ArrayList<>();
+  public DirNode(String name){ this.name=name; }
+  public DirNode add(FsNode n){ kids.add(n); return this; }
+  public String name(){ return name; }
+  public int size(){ return kids.stream().mapToInt(FsNode::size).sum(); }
 }
 
 ```
 
 ### Stage 3 — Runnable main
 ```java
-package com.buildwithwaqar.patterns.gof.structural.composite;
-import com.buildwithwaqar.patterns.gof.structural.composite.*;
-/** Problem: total size of nested project directories. */
-public final class UseCaseDemo {
-  public static void main(String[] a) {
-    System.out.println("=== Composite problem: folder size ===");
-    var root = new DirectoryComposite("repo")
-      .add(new FileLeaf("README.md", 100))
-      .add(new DirectoryComposite("src").add(new FileLeaf("Main.java", 500)).add(new FileLeaf("Demo.java", 200)));
-    System.out.println("totalBytes=" + root.size());
+package com.buildwithwaqar.patterns.gof.structural.composite.problem;
+
+import java.util.*;
+
+public final class ProblemDemo {
+  public static void main(String[] args) {
+    System.out.println("=== Composite: nested folder sizes ===");
+    System.out.println("--- naive flat map ---");
+System.out.println(NaiveSize.total(Map.of("a.txt",10,"b.txt",20)));
+System.out.println("--- composite ---");
+var root = new DirNode("src").add(new FileNode("A.java",10))
+  .add(new DirNode("util").add(new FileNode("B.java",25)));
+System.out.println("size="+root.size());
   }
 }
 
@@ -114,8 +96,11 @@ public final class UseCaseDemo {
 Narrate each line. Do not invent numbers on camera.
 
 ```text
-=== Composite problem: folder size ===
-totalBytes=800
+=== Composite: nested folder sizes ===
+--- naive flat map ---
+30
+--- composite ---
+size=35
 ```
 
 Trace: match each printed line to a stage above. Fork the repo, set `JAVA_HOME` to JDK 25,
@@ -197,65 +182,3 @@ Java 25 / Zazr take, then slow down for when NOT to use Composite.
 **[10:30]** *(interview + recap)*
 Two interview questions, three takeaways, link the GitHub episode folder. I am Waqar —
 see you in the next one.
-
-
-## Studio Notes for Build with Waqar
-When you record this episode, keep the energy practical. Start with the product pain, not the pattern name. Viewers stay when they feel the bug before they learn the label. In CapCut, overlay the slide number in the corner and cut idle IDE scrolling. If a code block is long, zoom CapCut to the highlighted lines rather than shrinking the font on the slide. Re-run the Demo live once if your machine allows — viewers trust a terminal more than a screenshot. Finally, end with a single actionable challenge: ask them to open the repo, run the Demo, and mutate one assertion in the test to see the failure. That turns passive watching into practice.
-
-### CapCut Checklist
-- Import `slides.pdf` or the PNG sequence at 1920×1080.
-- Align voiceover to the timestamps in the Video Script section.
-- Keep lower-thirds short: pattern name + one-line intent.
-- Add a pinned comment with the GitHub path to this episode folder.
-
-### Common Recording Mistakes
-- Reading UML without showing running output.
-- Skipping the "when NOT to use" section — that is what seniors listen for.
-- Rushing trade-offs. Slow down here; it is interview gold.
-- Forgetting to mention the test class name so learners can `mvn -Dtest=... test`.
-
-
-## Practice Drill (Do This After Watching)
-1. Clone `waqarys/java-design-patterns` and set `JAVA_HOME` to JDK 25.
-2. Run the episode Demo (`mvn -q exec:java -Dexec.mainClass=...` or `java -cp ... Demo`).
-3. Break the implementation on purpose; watch the test fail; restore it.
-4. Write one alternative design in a scratch branch and compare readability.
-5. Explain the pattern out loud in sixty seconds without looking at notes — that is your introspective for interviews.
-
-## Glossary
-- **Force:** the design pressure (extensibility, coupling, allocation, testability) that makes a pattern worth considering.
-- **Role:** a participant name from the pattern (Context, Strategy, Client, Creator, Product).
-- **Smell:** a code signal that a force is unresolved (telescoping constructors, instanceof forests, god classes).
-- **Modernization:** the Java 25 / Zazr encoding that preserves the force-resolution with less ceremony.
-
-
-## Problem Deep Dive
-The concrete problem for this episode is: **Compute total size of nested project folders**.
-
-Walk the naive path slowly on camera. Ask viewers what breaks first when requirements change —
-a new file to load, a new payment currency, a new saga step, a new illegal state transition.
-That question is the force. The pattern is just the name we give the force once we have felt it.
-
-Then open the solution types and show the boundary: what the rest of the app is allowed to
-depend on, and what stays hidden. Highlight how the runnable main prints a meaningful trace —
-happy path and at least one failure path — so CapCut can cut between IDE and terminal without
-inventing numbers.
-
-Finally, spend a full minute on trade-offs. Seniors stay for the "when not". Juniors need the
-happy path. Your job on Build with Waqar is both.
-
-
-## Studio Notes for Build with Waqar
-When you record this episode, keep the energy practical. Start with the product pain, not the pattern name. Viewers stay when they feel the bug before they learn the label. In CapCut, overlay the slide number in the corner and cut idle IDE scrolling. If a code block is long, zoom CapCut to the highlighted lines rather than shrinking the font on the slide. Re-run the Demo live once if your machine allows — viewers trust a terminal more than a screenshot. Finally, end with a single actionable challenge: ask them to open the repo, run the Demo, and mutate one assertion in the test to see the failure. That turns passive watching into practice.
-
-### CapCut Checklist
-- Import `slides.pdf` or the PNG sequence at 1920×1080.
-- Align voiceover to the timestamps in the Video Script section.
-- Keep lower-thirds short: pattern name + one-line intent.
-- Add a pinned comment with the GitHub path to this episode folder.
-
-### Common Recording Mistakes
-- Reading UML without showing running output.
-- Skipping the "when NOT to use" section — that is what seniors listen for.
-- Rushing trade-offs. Slow down here; it is interview gold.
-- Forgetting to mention the test class name so learners can `mvn -Dtest=... test`.

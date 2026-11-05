@@ -1,2 +1,5 @@
-=== Composite problem: folder size ===
-totalBytes=800
+=== Composite: nested folder sizes ===
+--- naive flat map ---
+30
+--- composite ---
+size=35

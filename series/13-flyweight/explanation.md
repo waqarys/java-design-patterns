@@ -1,6 +1,6 @@
 # Flyweight
 
-**Season:** 2 · Structural · **Category:** GoF · **Level:** Intermediate · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar
+**Season:** 2 · Structural · **Category:** GoF · **Level:** Intermediate · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar
 
 ## Problem
 **Share glyph styles across a million characters**
@@ -24,15 +24,14 @@ failure, or couple call sites to a third-party shape. That feels fast on day one
 on day thirty.
 
 ```java
-package com.buildwithwaqar.patterns.gof.structural.flyweight;
-import com.buildwithwaqar.patterns.gof.structural.flyweight.GlyphFactory;
-/** Problem: render a document without allocating a style object per character. */
-public final class UseCaseDemo {
-  public static void main(String[] a) {
-    System.out.println("=== Flyweight problem: shared glyph styles ===");
-    var f = new GlyphFactory();
-    for (int i = 0; i < 1000; i++) f.glyph((char)('A' + (i % 26)), f.style("Inter", 14, "#fff"), i, 0);
-    System.out.println("chars=1000 pooledStyles=" + f.pooled());
+package com.buildwithwaqar.patterns.gof.structural.flyweight.problem;
+
+import java.util.*;
+
+public final class NaiveGlyphs {
+  public static int render(int n){
+    int styles=0; for(int i=0;i<n;i++) styles++; // new style each glyph
+    return styles;
   }
 }
 
@@ -59,44 +58,47 @@ or distributed details behind it.
 
 ### Stage 2 — Encode the solution
 ```java
-package com.buildwithwaqar.patterns.gof.structural.flyweight;
+package com.buildwithwaqar.patterns.gof.structural.flyweight.problem;
 
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.*;
+import java.util.concurrent.*;
+import java.util.function.*;
 
-record GlyphStyle(String font, int size, String color) {}
-
-record Glyph(char character, GlyphStyle style, int x, int y) {}
-
-/** Flyweight factory pools intrinsic glyph styles. */
-public final class GlyphFactory {
-    private final Map<GlyphStyle, GlyphStyle> pool = new ConcurrentHashMap<>();
-
-    public GlyphStyle style(String font, int size, String color) {
-        var key = new GlyphStyle(font, size, color);
-        return pool.computeIfAbsent(key, k -> k);
-    }
-
-    public Glyph glyph(char c, GlyphStyle style, int x, int y) {
-        return new Glyph(c, style, x, y);
-    }
-
-    public int pooled() { return pool.size(); }
+final class GlyphStyle {
+  private final String font; private final int size;
+  GlyphStyle(String font, int size){ this.font=font; this.size=size; }
+  String key(){ return font+":"+size; }
+}
+final class GlyphFactory {
+  private final Map<String, GlyphStyle> cache = new HashMap<>();
+  GlyphStyle style(String font, int size){
+    return cache.computeIfAbsent(font+":"+size, k -> new GlyphStyle(font, size));
+  }
+  int cached(){ return cache.size(); }
+}
+final class Glyph {
+  private final char c; private final GlyphStyle style;
+  Glyph(char c, GlyphStyle style){ this.c=c; this.style=style; }
 }
 
 ```
 
 ### Stage 3 — Runnable main
 ```java
-package com.buildwithwaqar.patterns.gof.structural.flyweight;
-import com.buildwithwaqar.patterns.gof.structural.flyweight.GlyphFactory;
-/** Problem: render a document without allocating a style object per character. */
-public final class UseCaseDemo {
-  public static void main(String[] a) {
-    System.out.println("=== Flyweight problem: shared glyph styles ===");
-    var f = new GlyphFactory();
-    for (int i = 0; i < 1000; i++) f.glyph((char)('A' + (i % 26)), f.style("Inter", 14, "#fff"), i, 0);
-    System.out.println("chars=1000 pooledStyles=" + f.pooled());
+package com.buildwithwaqar.patterns.gof.structural.flyweight.problem;
+
+import java.util.*;
+import java.util.concurrent.*;
+
+public final class ProblemDemo {
+  public static void main(String[] args) {
+    System.out.println("=== Flyweight: share glyph styles ===");
+    System.out.println("--- naive ---");
+System.out.println("stylesCreated="+NaiveGlyphs.render(1000));
+System.out.println("--- flyweight ---");
+var f=new GlyphFactory();
+for (int i=0;i<1000;i++) new Glyph((char)('a'+(i%26)), f.style("Inter", 12));
+System.out.println("cachedStyles="+f.cached());
   }
 }
 
@@ -106,8 +108,11 @@ public final class UseCaseDemo {
 Narrate each line. Do not invent numbers on camera.
 
 ```text
-=== Flyweight problem: shared glyph styles ===
-chars=1000 pooledStyles=1
+=== Flyweight: share glyph styles ===
+--- naive ---
+stylesCreated=1000
+--- flyweight ---
+cachedStyles=1
 ```
 
 Trace: match each printed line to a stage above. Fork the repo, set `JAVA_HOME` to JDK 25,
@@ -189,65 +194,3 @@ Java 25 / Zazr take, then slow down for when NOT to use Flyweight.
 **[10:30]** *(interview + recap)*
 Two interview questions, three takeaways, link the GitHub episode folder. I am Waqar —
 see you in the next one.
-
-
-## Studio Notes for Build with Waqar
-When you record this episode, keep the energy practical. Start with the product pain, not the pattern name. Viewers stay when they feel the bug before they learn the label. In CapCut, overlay the slide number in the corner and cut idle IDE scrolling. If a code block is long, zoom CapCut to the highlighted lines rather than shrinking the font on the slide. Re-run the Demo live once if your machine allows — viewers trust a terminal more than a screenshot. Finally, end with a single actionable challenge: ask them to open the repo, run the Demo, and mutate one assertion in the test to see the failure. That turns passive watching into practice.
-
-### CapCut Checklist
-- Import `slides.pdf` or the PNG sequence at 1920×1080.
-- Align voiceover to the timestamps in the Video Script section.
-- Keep lower-thirds short: pattern name + one-line intent.
-- Add a pinned comment with the GitHub path to this episode folder.
-
-### Common Recording Mistakes
-- Reading UML without showing running output.
-- Skipping the "when NOT to use" section — that is what seniors listen for.
-- Rushing trade-offs. Slow down here; it is interview gold.
-- Forgetting to mention the test class name so learners can `mvn -Dtest=... test`.
-
-
-## Practice Drill (Do This After Watching)
-1. Clone `waqarys/java-design-patterns` and set `JAVA_HOME` to JDK 25.
-2. Run the episode Demo (`mvn -q exec:java -Dexec.mainClass=...` or `java -cp ... Demo`).
-3. Break the implementation on purpose; watch the test fail; restore it.
-4. Write one alternative design in a scratch branch and compare readability.
-5. Explain the pattern out loud in sixty seconds without looking at notes — that is your introspective for interviews.
-
-## Glossary
-- **Force:** the design pressure (extensibility, coupling, allocation, testability) that makes a pattern worth considering.
-- **Role:** a participant name from the pattern (Context, Strategy, Client, Creator, Product).
-- **Smell:** a code signal that a force is unresolved (telescoping constructors, instanceof forests, god classes).
-- **Modernization:** the Java 25 / Zazr encoding that preserves the force-resolution with less ceremony.
-
-
-## Problem Deep Dive
-The concrete problem for this episode is: **Share glyph styles across a million characters**.
-
-Walk the naive path slowly on camera. Ask viewers what breaks first when requirements change —
-a new file to load, a new payment currency, a new saga step, a new illegal state transition.
-That question is the force. The pattern is just the name we give the force once we have felt it.
-
-Then open the solution types and show the boundary: what the rest of the app is allowed to
-depend on, and what stays hidden. Highlight how the runnable main prints a meaningful trace —
-happy path and at least one failure path — so CapCut can cut between IDE and terminal without
-inventing numbers.
-
-Finally, spend a full minute on trade-offs. Seniors stay for the "when not". Juniors need the
-happy path. Your job on Build with Waqar is both.
-
-
-## Studio Notes for Build with Waqar
-When you record this episode, keep the energy practical. Start with the product pain, not the pattern name. Viewers stay when they feel the bug before they learn the label. In CapCut, overlay the slide number in the corner and cut idle IDE scrolling. If a code block is long, zoom CapCut to the highlighted lines rather than shrinking the font on the slide. Re-run the Demo live once if your machine allows — viewers trust a terminal more than a screenshot. Finally, end with a single actionable challenge: ask them to open the repo, run the Demo, and mutate one assertion in the test to see the failure. That turns passive watching into practice.
-
-### CapCut Checklist
-- Import `slides.pdf` or the PNG sequence at 1920×1080.
-- Align voiceover to the timestamps in the Video Script section.
-- Keep lower-thirds short: pattern name + one-line intent.
-- Add a pinned comment with the GitHub path to this episode folder.
-
-### Common Recording Mistakes
-- Reading UML without showing running output.
-- Skipping the "when NOT to use" section — that is what seniors listen for.
-- Rushing trade-offs. Slow down here; it is interview gold.
-- Forgetting to mention the test class name so learners can `mvn -Dtest=... test`.

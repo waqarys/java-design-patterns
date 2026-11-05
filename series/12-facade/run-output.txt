@@ -1,3 +1,6 @@
-=== Facade problem: one-call checkout ===
-OK:TRACK-sku-1
-REJECTED:inventory
+=== Facade: placeOrder over inventory+payment+shipping ===
+--- naive ---
+OK:SKU
+--- facade ---
+OK:SKU
+FAIL:payment

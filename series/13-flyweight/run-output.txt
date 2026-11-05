@@ -1,2 +1,5 @@
-=== Flyweight problem: shared glyph styles ===
-chars=1000 pooledStyles=1
+=== Flyweight: share glyph styles ===
+--- naive ---
+stylesCreated=1000
+--- flyweight ---
+cachedStyles=1

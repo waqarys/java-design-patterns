@@ -1,6 +1,6 @@
 # Bridge
 
-**Season:** 2 · Structural · **Category:** GoF · **Level:** Beginner · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar
+**Season:** 2 · Structural · **Category:** GoF · **Level:** Beginner · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar
 
 ## Problem
 **Draw shapes with Vector vs Raster renderers independently**
@@ -24,16 +24,15 @@ failure, or couple call sites to a third-party shape. That feels fast on day one
 on day thirty.
 
 ```java
-package com.buildwithwaqar.patterns.gof.structural.bridge;
+package com.buildwithwaqar.patterns.gof.structural.bridge.problem;
 
-/** Problem: support Vector and Raster rendering without exploding Shape×Renderer subclasses. */
-public final class UseCaseDemo {
-  public static void main(String[] a) {
-    System.out.println("=== Bridge problem: shape x renderer ===");
-    System.out.println("naive: VectorCircle, RasterCircle, VectorSquare, RasterSquare...");
-    System.out.println(BridgeShapes.vectorCircle(3));
-    System.out.println(BridgeShapes.rasterSquare(4));
-  }
+import java.util.*;
+
+public final class NaiveShapes {
+  public static String vectorCircle(int r){ return "vector-circle r="+r; }
+  public static String rasterCircle(int r){ return "raster-circle r="+r; }
+  public static String vectorSquare(int s){ return "vector-square s="+s; }
+  // explosion of combinations
 }
 
 ```
@@ -59,59 +58,42 @@ or distributed details behind it.
 
 ### Stage 2 — Encode the solution
 ```java
-package com.buildwithwaqar.patterns.gof.structural.bridge;
+package com.buildwithwaqar.patterns.gof.structural.bridge.problem;
 
-/** Public entry points for the bridge use-case demo. */
-public final class BridgeShapes {
-    private BridgeShapes() {}
-    public static String vectorCircle(int r) { return new Circle(new VectorRenderer(), r).draw(); }
-    public static String rasterSquare(int s) { return new Square(new RasterRenderer(), s).draw(); }
+import java.util.*;
+
+interface Renderer { String draw(String shape); }
+record VectorRenderer() implements Renderer { public String draw(String s){ return "vector-"+s; } }
+record RasterRenderer() implements Renderer { public String draw(String s){ return "raster-"+s; } }
+abstract class Shape {
+  protected final Renderer r; protected Shape(Renderer r){ this.r=r; }
+  public abstract String draw();
 }
-
-
-package com.buildwithwaqar.patterns.gof.structural.bridge;
-
-interface Renderer { String render(String shape); }
-
-record VectorRenderer() implements Renderer {
-    public String render(String shape) { return "vector:" + shape; }
-}
-record RasterRenderer() implements Renderer {
-    public String render(String shape) { return "raster:" + shape; }
-}
-
-/** Abstraction decoupled from implementation via composition. */
-public abstract class Shape {
-    protected final Renderer renderer;
-    protected Shape(Renderer renderer) { this.renderer = renderer; }
-    public abstract String draw();
-}
-
 final class Circle extends Shape {
-    private final int radius;
-    Circle(Renderer renderer, int radius) { super(renderer); this.radius = radius; }
-    public String draw() { return renderer.render("circle(" + radius + ")"); }
+  private final int radius; public Circle(Renderer r, int radius){ super(r); this.radius=radius; }
+  public String draw(){ return r.draw("circle r="+radius); }
 }
-
 final class Square extends Shape {
-    private final int side;
-    Square(Renderer renderer, int side) { super(renderer); this.side = side; }
-    public String draw() { return renderer.render("square(" + side + ")"); }
+  private final int side; public Square(Renderer r, int side){ super(r); this.side=side; }
+  public String draw(){ return r.draw("square s="+side); }
 }
 
 ```
 
 ### Stage 3 — Runnable main
 ```java
-package com.buildwithwaqar.patterns.gof.structural.bridge;
+package com.buildwithwaqar.patterns.gof.structural.bridge.problem;
 
-/** Problem: support Vector and Raster rendering without exploding Shape×Renderer subclasses. */
-public final class UseCaseDemo {
-  public static void main(String[] a) {
-    System.out.println("=== Bridge problem: shape x renderer ===");
-    System.out.println("naive: VectorCircle, RasterCircle, VectorSquare, RasterSquare...");
-    System.out.println(BridgeShapes.vectorCircle(3));
-    System.out.println(BridgeShapes.rasterSquare(4));
+import java.util.*;
+
+public final class ProblemDemo {
+  public static void main(String[] args) {
+    System.out.println("=== Bridge: shape × renderer ===");
+    System.out.println("--- naive ---");
+System.out.println(NaiveShapes.vectorCircle(3));
+System.out.println("--- bridge ---");
+System.out.println(new Circle(new VectorRenderer(), 3).draw());
+System.out.println(new Square(new RasterRenderer(), 4).draw());
   }
 }
 
@@ -121,10 +103,12 @@ public final class UseCaseDemo {
 Narrate each line. Do not invent numbers on camera.
 
 ```text
-=== Bridge problem: shape x renderer ===
-naive: VectorCircle, RasterCircle, VectorSquare, RasterSquare...
-vector:circle(3)
-raster:square(4)
+=== Bridge: shape × renderer ===
+--- naive ---
+vector-circle r=3
+--- bridge ---
+vector-circle r=3
+raster-square s=4
 ```
 
 Trace: match each printed line to a stage above. Fork the repo, set `JAVA_HOME` to JDK 25,
@@ -206,65 +190,3 @@ Java 25 / Zazr take, then slow down for when NOT to use Bridge.
 **[10:30]** *(interview + recap)*
 Two interview questions, three takeaways, link the GitHub episode folder. I am Waqar —
 see you in the next one.
-
-
-## Studio Notes for Build with Waqar
-When you record this episode, keep the energy practical. Start with the product pain, not the pattern name. Viewers stay when they feel the bug before they learn the label. In CapCut, overlay the slide number in the corner and cut idle IDE scrolling. If a code block is long, zoom CapCut to the highlighted lines rather than shrinking the font on the slide. Re-run the Demo live once if your machine allows — viewers trust a terminal more than a screenshot. Finally, end with a single actionable challenge: ask them to open the repo, run the Demo, and mutate one assertion in the test to see the failure. That turns passive watching into practice.
-
-### CapCut Checklist
-- Import `slides.pdf` or the PNG sequence at 1920×1080.
-- Align voiceover to the timestamps in the Video Script section.
-- Keep lower-thirds short: pattern name + one-line intent.
-- Add a pinned comment with the GitHub path to this episode folder.
-
-### Common Recording Mistakes
-- Reading UML without showing running output.
-- Skipping the "when NOT to use" section — that is what seniors listen for.
-- Rushing trade-offs. Slow down here; it is interview gold.
-- Forgetting to mention the test class name so learners can `mvn -Dtest=... test`.
-
-
-## Practice Drill (Do This After Watching)
-1. Clone `waqarys/java-design-patterns` and set `JAVA_HOME` to JDK 25.
-2. Run the episode Demo (`mvn -q exec:java -Dexec.mainClass=...` or `java -cp ... Demo`).
-3. Break the implementation on purpose; watch the test fail; restore it.
-4. Write one alternative design in a scratch branch and compare readability.
-5. Explain the pattern out loud in sixty seconds without looking at notes — that is your introspective for interviews.
-
-## Glossary
-- **Force:** the design pressure (extensibility, coupling, allocation, testability) that makes a pattern worth considering.
-- **Role:** a participant name from the pattern (Context, Strategy, Client, Creator, Product).
-- **Smell:** a code signal that a force is unresolved (telescoping constructors, instanceof forests, god classes).
-- **Modernization:** the Java 25 / Zazr encoding that preserves the force-resolution with less ceremony.
-
-
-## Problem Deep Dive
-The concrete problem for this episode is: **Draw shapes with Vector vs Raster renderers independently**.
-
-Walk the naive path slowly on camera. Ask viewers what breaks first when requirements change —
-a new file to load, a new payment currency, a new saga step, a new illegal state transition.
-That question is the force. The pattern is just the name we give the force once we have felt it.
-
-Then open the solution types and show the boundary: what the rest of the app is allowed to
-depend on, and what stays hidden. Highlight how the runnable main prints a meaningful trace —
-happy path and at least one failure path — so CapCut can cut between IDE and terminal without
-inventing numbers.
-
-Finally, spend a full minute on trade-offs. Seniors stay for the "when not". Juniors need the
-happy path. Your job on Build with Waqar is both.
-
-
-## Studio Notes for Build with Waqar
-When you record this episode, keep the energy practical. Start with the product pain, not the pattern name. Viewers stay when they feel the bug before they learn the label. In CapCut, overlay the slide number in the corner and cut idle IDE scrolling. If a code block is long, zoom CapCut to the highlighted lines rather than shrinking the font on the slide. Re-run the Demo live once if your machine allows — viewers trust a terminal more than a screenshot. Finally, end with a single actionable challenge: ask them to open the repo, run the Demo, and mutate one assertion in the test to see the failure. That turns passive watching into practice.
-
-### CapCut Checklist
-- Import `slides.pdf` or the PNG sequence at 1920×1080.
-- Align voiceover to the timestamps in the Video Script section.
-- Keep lower-thirds short: pattern name + one-line intent.
-- Add a pinned comment with the GitHub path to this episode folder.
-
-### Common Recording Mistakes
-- Reading UML without showing running output.
-- Skipping the "when NOT to use" section — that is what seniors listen for.
-- Rushing trade-offs. Slow down here; it is interview gold.
-- Forgetting to mention the test class name so learners can `mvn -Dtest=... test`.

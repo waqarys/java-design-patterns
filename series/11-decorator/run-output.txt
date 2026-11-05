@@ -1,2 +1,6 @@
-=== Decorator problem: compress+encrypt store ===
-roundTrip=token=supersecret
+=== Decorator: compress+encrypt store ===
+--- naive ---
+enc(secret)
+--- decorator stack ---
+stored-view=zip(enc(secret))
+read=secret

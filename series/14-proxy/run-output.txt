@@ -1,4 +1,9 @@
-=== Proxy problem: lazy image load ===
-loadedBeforeScroll=false
-showing:/cdn/hero.png
+=== Proxy: lazy-load heavy image ===
+--- naive (loads immediately) ---
+LOAD /big.png
+shown
+--- proxy ---
+loadedBefore=false
+LOAD /big.png
+shown:/big.png
 loadedAfter=true
