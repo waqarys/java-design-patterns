@@ -1,0 +1,12 @@
+target/
+.idea/
+*.iml
+.classpath
+.project
+.settings/
+.DS_Store
+*.class
+.venv/
+__pycache__/
+*.pyc
+.mvn/wrapper/maven-wrapper.jar

@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <groupId>com.buildwithwaqar</groupId>
+  <artifactId>java-design-patterns</artifactId>
+  <version>1.0.0-SNAPSHOT</version>
+  <name>Java 25 Design Patterns</name>
+  <description>
+    GoF, enterprise, concurrency, and functional design patterns in idiomatic Java 25,
+    with Zazr and VAVR. YouTube series content for Build with Waqar.
+  </description>
+  <url>https://github.com/waqarys/java-design-patterns</url>
+  <licenses>
+    <license>
+      <name>MIT License</name>
+      <url>https://opensource.org/licenses/MIT</url>
+    </license>
+  </licenses>
+
+  <properties>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <maven.compiler.release>25</maven.compiler.release>
+    <junit.version>5.11.4</junit.version>
+    <zazr.version>0.4.0</zazr.version>
+    <vavr.version>1.1.0</vavr.version>
+  </properties>
+
+  <dependencies>
+    <!-- Primary FP library for Java 25 (Vavr fork with sealed/records) -->
+    <dependency>
+      <groupId>dev.zazr</groupId>
+      <artifactId>zazr-core</artifactId>
+      <version>${zazr.version}</version>
+    </dependency>
+    <!-- Classic VAVR kept for side-by-side comparison episodes -->
+    <dependency>
+      <groupId>io.vavr</groupId>
+      <artifactId>vavr</artifactId>
+      <version>${vavr.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <version>${junit.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>dev.zazr</groupId>
+      <artifactId>zazr-test</artifactId>
+      <version>${zazr.version}</version>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <version>3.13.0</version>
+        <configuration>
+          <release>25</release>
+          <compilerArgs>
+            <arg>-Xlint:unchecked</arg>
+          </compilerArgs>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <version>3.5.2</version>
+      </plugin>
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>exec-maven-plugin</artifactId>
+        <version>3.5.0</version>
+      </plugin>
+    </plugins>
+  </build>
+</project>
