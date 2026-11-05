@@ -1,4 +1,3 @@
-=== IO walkthrough ===
-hitsBefore=0
-run=11
-hitsAfter=1
+=== IO / Effect Interpreter problem ===
+described hits=0
+run=rows=42 hits=1

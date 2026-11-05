@@ -1,2 +1,6 @@
-=== Reader walkthrough ===
-Namaste Waqar!
+=== Reader problem: multi-file config merge ===
+--- naive (paths + charset threaded everywhere) ---
+ConfigBundle[yaml={app=demo, port=8080}, secrets={DB_PASS=s3cret}, flags={beta=true}]
+--- reader (Env asked once at the edge) ---
+ConfigBundle[yaml={app=demo, port=8080}, secrets={DB_PASS=s3cret}, flags={beta=true}]
+log=[read /app/config/config.yaml (19 bytes), read /app/config/secrets.env (15 bytes), read /app/config/feature-flags.json (10 bytes)]

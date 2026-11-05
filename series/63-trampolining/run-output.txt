@@ -1,2 +1,2 @@
-=== Trampoline walkthrough ===
+=== Trampoline problem: deep recursion ===
 sum100000=5000050000

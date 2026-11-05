@@ -1,2 +1,2 @@
-=== State walkthrough ===
-value=10 state=11
+=== State problem: pure bank simulation ===
+returned=120 newBalance=120

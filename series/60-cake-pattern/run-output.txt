@@ -1,2 +1,2 @@
-=== Cake Pattern walkthrough ===
+=== Cake problem: wire user welcome flow ===
 sent:42@example.com:welcome 42

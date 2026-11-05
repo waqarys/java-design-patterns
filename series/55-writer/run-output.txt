@@ -1,2 +1,2 @@
-=== Writer walkthrough ===
-value=4 log=inc;dbl;
+=== Writer problem: audited total ===
+value=15 log=add10;add5;

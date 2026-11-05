@@ -1,5 +1,3 @@
-=== VAVR vs Zazr walkthrough ===
-vavrSome=got 1
-vavrNone=missing
-zazrSome=got 1
-zazrNone=missing
+=== VAVR vs Zazr problem ===
+vavr=got 7
+zazr=got 7
