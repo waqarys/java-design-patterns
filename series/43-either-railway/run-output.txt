@@ -1,4 +1,4 @@
-=== Either / Railway walkthrough ===
-ok:id-7
-err:not an int: x
-err:not positive: -3
+=== Either problem: railway ID validation ===
+ok:id-42
+err:not an int: nope
+err:not positive: -1

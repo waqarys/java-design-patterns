@@ -1,3 +1,3 @@
-=== Try walkthrough ===
-good=80
+=== Try problem: config int with recovery ===
+good=9090
 bad=8080

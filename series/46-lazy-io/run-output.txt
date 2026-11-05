@@ -1,9 +1,3 @@
-=== IO walkthrough ===
-hitsBefore=0
-run=11
-hitsAfter=1
-=== Lazy walkthrough ===
-hitsBefore=0
-v1=42
-v2=42
-hitsAfter=1
+=== Lazy problem: deferred report ===
+before=0
+v=42 after=1 again=42 hits=1

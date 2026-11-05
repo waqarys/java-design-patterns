@@ -1,37 +1,46 @@
 # Algebraic Data Types with Sealed Records
 
-**Season:** 6 · FP Foundations · **Category:** Functional · **Level:** Intermediate · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar
+**Season:** 6 · FP Foundations · **Category:** Functional · **Level:** Intermediate · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar
+
+## Problem
+**Exhaustive Payment describe**
+
+This episode is built around that concrete problem — not a shared StreamForge framing.
+You will see a real naive implementation that hurts, a full pattern-based solution, a
+runnable main with meaningful stdout, and JUnit failure-path coverage where the pattern lives.
 
 ## Hook
-Welcome back to **Build with Waqar**. In this episode we treat **Algebraic Data Types with Sealed Records** as a product problem inside StreamForge — our fictional creator platform — not as a trivia card. By the end you will have a runnable `Demo`, a hand-traced walkthrough with real JDK 25 stdout, a modern Java 25 or Zazr variant, trade-offs, related patterns, interview drills, and a full spoken script timed for OBS and CapCut.
-
-If you only remember one sentence: patterns name **forces**. Algebraic Data Types with Sealed Records exists because a particular force kept showing up in real systems. We will feel that force in a naive design first, then earn the pattern.
+Welcome back to **Build with Waqar**. Today we earn **ADTs Sealed** by solving one problem well:
+*Exhaustive Payment describe*. By the end you will have walked naive pain → pattern refactor → real JDK 25
+stdout → trade-offs, with CapCut slides and a spoken script.
 
 ## Intent
-Algebraic Data Types with Sealed Records gives StreamForge a clear, teachable structure for a recurring design force. In interviews you should be able to state the force, sketch the roles, and — critically — say when you would refuse the pattern.
-
-## Real-World Scenario (Runs Through the Whole Episode)
-Picture StreamForge the week before a product launch. Creators upload tutorials, the dashboard flips between light and dark themes, notifications fan out to email/SMS/push, billing must not double-charge, and workers transcode video. Somewhere in that stack, the force behind **Algebraic Data Types with Sealed Records** appears: either object creation is messy, structure is rigid, collaborators are tangled, failures are noisy, concurrency is unsafe, or domain logic is impure.
-
-We will stay inside one concrete story for this episode — the same names will appear in the naive code, the refactor stages, the Demo output, and the CapCut slides — so you can teach without swapping examples mid-video.
+ADTs Sealed exists because this force kept showing up: exhaustive payment describe. Name the force, sketch
+the roles, and — critically — know when you would refuse the pattern.
 
 ## The Pain — Naive Design
-Before the pattern, teams usually reach for the most local fix: more `if` statements, more constructors, more shared mutable statics, more null checks, or more threads. That feels fast on day one and expensive on day thirty.
+Before the pattern, teams usually thread details everywhere, leak resources on partial
+failure, or couple call sites to a third-party shape. That feels fast on day one and expensive
+on day thirty.
 
 ```java
-// NAIVE sketch for Algebraic Data Types with Sealed Records
-// (Illustrative — the live refactor uses the repository sources below.)
-public class NaiveStreamForgeBit {
-  // duplicated construction, leaked details, or unsafe shared state
-  public Object doIt(Object... args) {
-    if (args == null) return null;
-    // copy-paste variant #4 lives in another class
-    return args[0];
+package com.buildwithwaqar.patterns.functional.adt;
+
+import com.buildwithwaqar.patterns.functional.adt.*;
+/** Problem: payments that cannot encode illegal field combinations; emails that validate. */
+public final class UseCaseDemo {
+  public static void main(String[] a) {
+    System.out.println("=== ADT/Smart Constructor problem ===");
+    System.out.println(Email.parse("waqar@bwq.dev"));
+    System.out.println(Email.parse("bad"));
+    System.out.println(Payment.describe(new CardPayment(999, "4242")));
   }
 }
+
 ```
 
-Symptoms you should call out on camera: illegal states that still compile; tests that need `Thread.sleep`; god classes that know every subsystem; `instanceof` forests; null at API boundaries; or undo/retry logic scattered across controllers.
+Call out the smell on camera: duplicated envelopes, missing compensations, parameter drilling,
+illegal transitions, or null at the boundary.
 
 ## Pattern Structure
 ```mermaid
@@ -40,134 +49,209 @@ flowchart LR
   Pattern --> Collaborators
 ```
 
-Roles matter more than class counts. On the diagram slide we draw the collaboration for **Algebraic Data Types with Sealed Records** so viewers can point at boxes while you type.
+Roles matter more than class counts. The diagram slide draws the collaboration for **this**
+problem so viewers can point at boxes while you type.
 
-## Refactor to the Pattern (Step by Step)
+## Refactor to the Pattern
 
-### Stage 1 — Name the roles
-Identify Client, the pattern entry point, and the collaborators. Delete the shortcuts that couple them. In StreamForge this is usually where a controller stops `new`-ing infrastructure.
+### Stage 1 — Name the boundary
+Identify the client-facing API the rest of the app should depend on. Hide the incompatible
+or distributed details behind it.
 
-### Stage 2 — Encode the pattern in idiomatic Java 25
-Here is the primary implementation from this repository (trimmed for the episode):
-
+### Stage 2 — Encode the solution
 ```java
-// see src/main/java
+package com.buildwithwaqar.patterns.functional.adt;
+
+/** Algebraic data type via sealed records + pattern matching. */
+public sealed interface Payment permits CardPayment, CashPayment, WirePayment {
+    int amountCents();
+
+    static String describe(Payment p) {
+        return switch (p) {
+            case CardPayment(var cents, var last4) -> "card ****" + last4 + " " + cents;
+            case CashPayment(var cents) -> "cash " + cents;
+            case WirePayment(var cents, var iban) -> "wire " + iban + " " + cents;
+        };
+    }
+}
+
+record CardPayment(int amountCents, String last4) implements Payment {}
+record CashPayment(int amountCents) implements Payment {}
+record WirePayment(int amountCents, String iban) implements Payment {}
+
+
+package com.buildwithwaqar.patterns.functional.adt;
+
+import dev.zazr.control.Either;
+
+/** Smart constructor — prefer {@link #parse}; canonical ctor still validates. */
+public record Email(String value) {
+    public Email {
+        if (value == null || !value.contains("@")) {
+            throw new IllegalArgumentException("invalid email");
+        }
+    }
+
+    public static Either<String, Email> parse(String raw) {
+        if (raw == null || !raw.contains("@")) return Either.left("invalid email");
+        return Either.right(new Email(raw));
+    }
+}
+
 ```
 
-Walk this top to bottom on camera. Highlight sealed types, records, and switch expressions when they appear. If the classic GoF encoding still exists beside a modern variant, show both and say which you would merge to `main` in a real service.
-
-### Stage 3 — Make it runnable
-Every pattern package ships a `Demo` with a `main`. That is what we run for the walkthrough — not a fictional console.
-
+### Stage 3 — Runnable main
 ```java
-// see Demo.java in the pattern package
+package com.buildwithwaqar.patterns.functional.adt;
+
+import com.buildwithwaqar.patterns.functional.adt.*;
+/** Problem: payments that cannot encode illegal field combinations; emails that validate. */
+public final class UseCaseDemo {
+  public static void main(String[] a) {
+    System.out.println("=== ADT/Smart Constructor problem ===");
+    System.out.println(Email.parse("waqar@bwq.dev"));
+    System.out.println(Email.parse("bad"));
+    System.out.println(Payment.describe(new CardPayment(999, "4242")));
+  }
+}
+
 ```
 
 ## Hand-Traced Walkthrough (Verified on JDK 25)
-We compiled with Temurin JDK 25 and executed the Demo. The stdout below is the **actual capture** stored in `run-output.txt` for this episode. Narrate each line; do not invent numbers on camera.
+Narrate each line. Do not invent numbers on camera.
 
 ```text
-=== ADT / Smart Constructor walkthrough ===
-email=Right(Email[value=waqar@bwq.dev])
-badEmail=Left(invalid email)
-cash 100
-card ****1234 500
-wire IN00 900
+=== ADT/Smart Constructor problem ===
+Right(Email[value=waqar@bwq.dev])
+Left(invalid email)
+card ****4242 999
 ```
 
-Trace: match each printed line to a stage above. If a viewer forks the repo and sees different output, they should `git pull` `main` and re-run on JDK 25.
+Trace: match each printed line to a stage above. Fork the repo, set `JAVA_HOME` to JDK 25,
+and re-run the same main class to verify.
 
 ## Modern Java 25 / Zazr Variant
-Classic encodings were fighting older Java. On Java 25 we prefer records for data, sealed interfaces for closed variants, pattern matching for exhaustive handling, virtual threads for blocking fan-out, and Zazr for Option/Either/Try/Validation and persistent collections. When **Algebraic Data Types with Sealed Records** has a functional dual, show it: Strategy as a function, Observer as a stream, Interpreter as Free/Tagless, null object as Option.
-
-```java
-// Modern direction for Algebraic Data Types with Sealed Records
-// - prefer composition + sealed types over deep inheritance
-// - prefer injecting interfaces at the edge over hidden singletons
-// - prefer Zazr Option/Either/Validation over null
-// - prefer virtual threads over hand-rolled pools for blocking work
-```
-
-If this episode already uses Zazr (Option, Either, Validation, Vector, Lazy), linger on the sealed `switch` — that is the Java 25 payoff versus older VAVR code.
+Prefer records for results, sealed types for closed variants, pattern matching for exhaustive
+handling, virtual threads for blocking fan-out, and Zazr for Option/Either/Try/Validation
+when the force is about absence or accumulated errors. Keep the classic shape when interview
+literacy matters.
 
 ## Trade-offs
-- **Clarity vs ceremony:** a pattern that needs five types for a two-line problem is a fail.
-- **Testability:** hidden globals and static singletons fight unit tests; inject instead.
-- **Extensibility:** sealed hierarchies are closed; SPI plugins may need a different story.
-- **Performance:** flyweight/caching help; premature pooling and speculative asynchrony hurt.
-- **Distributed systems:** Saga/Outbox/Circuit Breaker demos are teaching-sized — production needs idempotency keys, metrics, and poison-pill handling.
+- **Clarity vs ceremony:** five types for a two-line problem is a fail.
+- **Testability:** inject collaborators; for Saga, inject failure at each step.
+- **Distributed reality:** teaching demos omit metrics, poison pills, and multi-region clocks.
+- **Refuse the pattern** when a sealed switch, a function value, or a simpler library call
+  already erases the force.
 
 ## When to Use / When Not to Use
-**Use when** the force behind Algebraic Data Types with Sealed Records shows up more than once and a simpler language feature does not erase it.
+**Use when** the problem above shows up more than once and a simpler language feature does
+not erase it.
 
-**Avoid when** you are pattern-collecting, when a sealed switch or a function value already communicates the design, or when the team cannot yet test the abstraction.
+**Avoid when** you are pattern-collecting, when the boundary is still unclear, or when the
+team cannot yet test the abstraction (especially compensations and half-open recovery).
 
 ## Related Patterns
-Neighbor patterns share forces. Contrast Algebraic Data Types with Sealed Records with its usual twin (for example Factory Method vs Abstract Factory, Strategy vs State, Proxy vs Decorator, Free vs Tagless Final). Say the distinguishing sentence out loud — that is an interview soundbite.
+Contrast ADTs Sealed with its usual twin (Adapter vs Facade, Saga vs Outbox, Reader vs DI/Cake,
+State vs Strategy, Free vs Tagless). Say the distinguishing sentence out loud.
 
 ## Interview Q&A
-**Q1. What force does Algebraic Data Types with Sealed Records resolve?**
-A: State the force in product language (StreamForge), then in pattern language.
+**Q1. What concrete problem does ADTs Sealed solve here?**
+A: Exhaustive Payment describe.
 
-**Q2. How would you implement Algebraic Data Types with Sealed Records on Java 25 differently than in Java 8?**
-A: Records, sealed types, pattern matching, virtual threads, Zazr control types — pick the ones that apply.
+**Q2. What does the naive design get wrong?**
+A: Point at the naive code smells from this episode.
 
-**Q3. When is Algebraic Data Types with Sealed Records the wrong tool?**
-A: Give a concrete counterexample from StreamForge (too small, wrong boundary, fights the framework).
+**Q3. How do you test failure paths?**
+A: Inject a failing collaborator (Saga step, SOAP fault, missing file) and assert the
+observable outcome — compensation order, FAILED result, or thrown IllegalStateException.
 
-**Q4. How do you test it?**
-A: Inject interfaces; use fixed clocks; capture Demo stdout; assert collaborator interactions.
+**Q4. When is ADTs Sealed the wrong tool?**
+A: Give a smaller counterexample where a function, Option, or facade is enough.
 
-**Q5. What production pitfall should seniors watch for?**
-A: Concurrency, idempotency, resource lifetime, or over-abstraction — pick the honest one for this pattern.
-
-**Q6. What related pattern is commonly confused with it?**
-A: Name it and separate the forces.
-
-**Q7. Can you sketch the roles from memory?**
-A: Yes — Client, pattern entry, collaborators — matching the diagram slide.
+**Q5. How does Java 25 change the encoding?**
+A: Records, sealed types, virtual threads, Zazr control types — pick what applies.
 
 ## Key Takeaways
-- Feel the StreamForge pain before naming Algebraic Data Types with Sealed Records.
-- Refactor in stages; run the Demo; trust JDK 25 stdout.
-- Modernize with Java 25 / Zazr where it shrinks ceremony.
-- Teach trade-offs and "when not" as loudly as the happy path.
+- Lead with the problem: Exhaustive Payment describe.
+- Show naive pain before naming ADTs Sealed.
+- Run the Demo; trust JDK 25 stdout.
+- Teach when NOT to use it.
 
 ## Video Script (≈10–12 minutes)
-Record for **Build with Waqar**. OBS for capture, CapCut for assembly. Import `slides.pdf` or the PNG sequence.
+Record for **Build with Waqar**. OBS for capture, CapCut for assembly. Import `slides.pdf`.
 
-**[0:00]** *(slide 01 title)*  
-Hey everyone, welcome back to Build with Waqar. Today we go deep on Algebraic Data Types with Sealed Records with working Java 25 code, a real Demo run, and slides you can drop straight into CapCut.
+**[0:00]** *(slide 01 title)*
+Hey everyone, welcome back to Build with Waqar. Today we solve a real problem with ADTs Sealed:
+Exhaustive Payment describe.
 
-**[0:40]** *(slide 02 hook)*  
-I am not going to start with a definition. I will start with a StreamForge product pain so you feel why this pattern exists.
+**[0:40]** *(slide 02–03 problem)*
+I am not starting with a definition. Here is the product pain. Keep these names — they
+reappear in the Demo output.
 
-**[1:30]** *(slide 03–04 problem/scenario)*  
-Here is the scenario we will carry for the whole episode. Keep these names — they reappear in the Demo output.
+**[2:00]** *(naive code)*
+IDE time. This is the naive version. Call out the smell.
 
-**[3:00]** *(slide naive code + IDE)*  
-Switch to the IDE. This is the naive version. Call out the smell: coupling, duplication, illegal states, or unsafe sharing.
+**[3:30]** *(diagram)*
+Structure for **this** problem. Point at each role.
 
-**[4:30]** *(diagram slide)*  
-Back to slides — structure diagram. Point at each role. If viewers remember only the boxes, they can still rebuild the code.
+**[4:30]** *(refactor stages)*
+Stage by stage into the pattern. Highlight tests and failure injection.
 
-**[5:30]** *(IDE refactor stages)*  
-Now we refactor stage by stage. Highlight sealed types, records, and tests as they appear.
+**[7:00]** *(walkthrough output)*
+Real stdout from JDK 25. Line by line. No fake numbers.
 
-**[7:30]** *(walkthrough output slide)*  
-Here is the real stdout from JDK 25. I will read it line by line. No fake numbers.
+**[8:30]** *(modern + trade-offs)*
+Java 25 / Zazr take, then slow down for when NOT to use ADTs Sealed.
 
-**[8:45]** *(modern variant)*  
-Modern Java 25 / Zazr take. Same force, less ceremony. Mention when you would still keep the classic shape for interview literacy.
+**[10:30]** *(interview + recap)*
+Two interview questions, three takeaways, link the GitHub episode folder. I am Waqar —
+see you in the next one.
 
-**[9:45]** *(trade-offs + when not)*  
-Slow down. This is the senior section. When would we refuse Algebraic Data Types with Sealed Records?
 
-**[10:45]** *(interview Q&A)*  
-Rapid-fire two interview questions. Encourage viewers to pause and answer aloud.
+## Studio Notes for Build with Waqar
+When you record this episode, keep the energy practical. Start with the product pain, not the pattern name. Viewers stay when they feel the bug before they learn the label. In CapCut, overlay the slide number in the corner and cut idle IDE scrolling. If a code block is long, zoom CapCut to the highlighted lines rather than shrinking the font on the slide. Re-run the Demo live once if your machine allows — viewers trust a terminal more than a screenshot. Finally, end with a single actionable challenge: ask them to open the repo, run the Demo, and mutate one assertion in the test to see the failure. That turns passive watching into practice.
 
-**[11:30]** *(recap + outro)*  
-Recap three bullets, point to the GitHub folder for this episode, and tease the next pattern in the season. I am Waqar — I will see you in the next one. Like and subscribe if this helps your interview prep.
+### CapCut Checklist
+- Import `slides.pdf` or the PNG sequence at 1920×1080.
+- Align voiceover to the timestamps in the Video Script section.
+- Keep lower-thirds short: pattern name + one-line intent.
+- Add a pinned comment with the GitHub path to this episode folder.
+
+### Common Recording Mistakes
+- Reading UML without showing running output.
+- Skipping the "when NOT to use" section — that is what seniors listen for.
+- Rushing trade-offs. Slow down here; it is interview gold.
+- Forgetting to mention the test class name so learners can `mvn -Dtest=... test`.
+
+
+## Practice Drill (Do This After Watching)
+1. Clone `waqarys/java-design-patterns` and set `JAVA_HOME` to JDK 25.
+2. Run the episode Demo (`mvn -q exec:java -Dexec.mainClass=...` or `java -cp ... Demo`).
+3. Break the implementation on purpose; watch the test fail; restore it.
+4. Write one alternative design in a scratch branch and compare readability.
+5. Explain the pattern out loud in sixty seconds without looking at notes — that is your introspective for interviews.
+
+## Glossary
+- **Force:** the design pressure (extensibility, coupling, allocation, testability) that makes a pattern worth considering.
+- **Role:** a participant name from the pattern (Context, Strategy, Client, Creator, Product).
+- **Smell:** a code signal that a force is unresolved (telescoping constructors, instanceof forests, god classes).
+- **Modernization:** the Java 25 / Zazr encoding that preserves the force-resolution with less ceremony.
+
+
+## Problem Deep Dive
+The concrete problem for this episode is: **Exhaustive Payment describe**.
+
+Walk the naive path slowly on camera. Ask viewers what breaks first when requirements change —
+a new file to load, a new payment currency, a new saga step, a new illegal state transition.
+That question is the force. The pattern is just the name we give the force once we have felt it.
+
+Then open the solution types and show the boundary: what the rest of the app is allowed to
+depend on, and what stays hidden. Highlight how the runnable main prints a meaningful trace —
+happy path and at least one failure path — so CapCut can cut between IDE and terminal without
+inventing numbers.
+
+Finally, spend a full minute on trade-offs. Seniors stay for the "when not". Juniors need the
+happy path. Your job on Build with Waqar is both.
 
 
 ## Studio Notes for Build with Waqar

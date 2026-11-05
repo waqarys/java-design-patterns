@@ -1,4 +1,3 @@
-=== Functions walkthrough ===
-curry=5
-compose=8
-memo1=9 memo2=9 hits=1
+=== Currying/Memoization problem ===
+curry=42
+memo=144,144 hits=1

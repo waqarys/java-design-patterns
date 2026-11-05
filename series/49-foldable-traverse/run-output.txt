@@ -1,3 +1,2 @@
-=== Foldable walkthrough ===
-foldLeft=6
-foldMonoid=6
+=== Foldable problem: score totals ===
+60

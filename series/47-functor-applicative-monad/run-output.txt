@@ -1,2 +1,2 @@
-=== Typeclass / Monad walkthrough ===
-mapped=Some(42)
+=== Typeclass/Monad problem: Option dictionary ===
+Some(42)
