@@ -1,0 +1,204 @@
+1
+00:00:00,600 --> 00:00:04,384
+What happens when the payment goes through, but shipping fails?
+
+2
+00:00:04,334 --> 00:00:08,553
+Your customer is charged, the stock is locked, and nothing ships.
+
+3
+00:00:08,553 --> 00:00:11,558
+Today we fix that with the Saga pattern.
+
+4
+00:00:21,812 --> 00:00:24,118
+Here is the product problem.
+
+5
+00:00:24,068 --> 00:00:27,133
+To book an order we call three services:
+
+6
+00:00:27,133 --> 00:00:30,198
+reserve inventory, charge the payment, and create the shipment.
+
+7
+00:00:30,198 --> 00:00:32,848
+Each one has its own database, so there
+
+8
+00:00:32,848 --> 00:00:35,498
+is no single transaction that covers all three.
+
+9
+00:00:37,060 --> 00:00:40,016
+The inputs are simple: an order id, a SKU,
+
+10
+00:00:40,016 --> 00:00:42,972
+a quantity, the amount in cents, and an address.
+
+11
+00:00:42,922 --> 00:00:46,407
+On success, the order is committed and shipped.
+
+12
+00:00:46,407 --> 00:00:51,119
+On failure, we must refund the money and release the stock, in reverse order.
+
+13
+00:00:54,868 --> 00:00:58,268
+This is the naive version most of us write first.
+
+14
+00:00:58,218 --> 00:01:03,121
+Reserve, then charge, then ship, with an early return on every failure.
+
+15
+00:01:03,121 --> 00:01:05,165
+Look at the comments.
+
+16
+00:01:05,165 --> 00:01:08,698
+If the charge fails, inventory stays reserved.
+
+17
+00:01:08,698 --> 00:01:12,280
+If shipping fails, the customer has already paid.
+
+18
+00:01:13,836 --> 00:01:16,238
+So the naive flow leaks.
+
+19
+00:01:16,188 --> 00:01:20,707
+There is no compensation registry, no way to inject a failure in a test,
+
+20
+00:01:20,707 --> 00:01:25,226
+and no idempotency key, which means a retry can double charge the customer in production.
+
+21
+00:01:28,980 --> 00:01:30,853
+Enter the Saga.
+
+22
+00:01:30,803 --> 00:01:33,814
+An orchestrator calls each step in order,
+
+23
+00:01:33,814 --> 00:01:36,825
+and every successful step registers a compensating action.
+
+24
+00:01:36,825 --> 00:01:39,974
+Inventory reserve is undone by release.
+
+25
+00:01:39,974 --> 00:01:42,510
+Charge is undone by refund.
+
+26
+00:01:42,510 --> 00:01:45,653
+There is also a choreography twin, where services react
+
+27
+00:01:45,653 --> 00:01:48,796
+to events on a bus instead of a central coordinator.
+
+28
+00:01:52,548 --> 00:01:55,142
+Here is the orchestrated saga.
+
+29
+00:01:55,092 --> 00:01:57,965
+Three small interfaces, inventory, payments and shipping,
+
+30
+00:01:57,965 --> 00:02:00,837
+each with a do and an undo method.
+
+31
+00:02:00,837 --> 00:02:04,419
+A step result record tells us whether a call succeeded.
+
+32
+00:02:05,972 --> 00:02:10,622
+Inside book, every step runs once, keyed by order id and step name.
+
+33
+00:02:10,572 --> 00:02:13,144
+That is our idempotency guard.
+
+34
+00:02:13,144 --> 00:02:17,404
+After a step succeeds, we add its compensation to the front of
+
+35
+00:02:17,404 --> 00:02:21,665
+the list, so when something throws, the compensations replay in reverse order automatically.
+
+36
+00:02:23,212 --> 00:02:26,816
+And this is real output from JDK 25.
+
+37
+00:02:26,766 --> 00:02:30,925
+In the happy path we see reserve, charge, ship, committed.
+
+38
+00:02:30,925 --> 00:02:34,320
+When the carrier is down, the saga aborts at ship,
+
+39
+00:02:34,320 --> 00:02:37,715
+refunds the payment, releases the stock, and ends in rolled back.
+
+40
+00:02:37,715 --> 00:02:40,852
+No leaked money, no locked inventory.
+
+41
+00:02:44,596 --> 00:02:46,565
+Now the trade-offs.
+
+42
+00:02:46,515 --> 00:02:50,614
+Use a saga when a business transaction really spans services.
+
+43
+00:02:50,614 --> 00:02:55,301
+Do not reach for it when one database transaction or a simple function would do.
+
+44
+00:02:55,301 --> 00:02:58,967
+And remember, compensations are not a magic undo.
+
+45
+00:02:58,967 --> 00:03:03,462
+They are new business actions, so they must be idempotent and well tested.
+
+46
+00:03:07,228 --> 00:03:08,945
+Quick recap.
+
+47
+00:03:08,895 --> 00:03:13,198
+Start from the problem, feel the naive pain, then name the pattern.
+
+48
+00:03:13,198 --> 00:03:16,395
+Register a compensation for every step, run them in
+
+49
+00:03:16,395 --> 00:03:19,592
+reverse on failure, and inject failures in your tests.
+
+50
+00:03:19,592 --> 00:03:23,102
+All the code and slides are on GitHub, linked below.
+
+51
+00:03:23,102 --> 00:03:26,455
+I am Waqar, and I will see you in the next one.
+
