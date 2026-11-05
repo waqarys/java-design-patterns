@@ -1,6 +1,6 @@
 # Thread Pool
 
-**Season:** 5 · Concurrency · **Category:** Concurrency · **Level:** Intermediate · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar
+**Season:** 5 · Concurrency · **Category:** Concurrency · **Level:** Intermediate · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar
 
 ## Problem
 **Cap concurrent thumbnail jobs**
@@ -24,21 +24,12 @@ failure, or couple call sites to a third-party shape. That feels fast on day one
 on day thirty.
 
 ```java
-package com.buildwithwaqar.patterns.concurrency.threadpool;
+package com.buildwithwaqar.patterns.concurrency.threadpool.problem;
 
-import com.buildwithwaqar.patterns.concurrency.threadpool.SimpleThreadPool;
-import java.util.concurrent.atomic.AtomicInteger;
-/** Problem: cap concurrent thumbnail jobs so the box is not fork-bombed. */
-public final class UseCaseDemo {
-  public static void main(String[] a) throws Exception {
-    System.out.println("=== Thread Pool problem: thumbnail jobs ===");
-    var n = new AtomicInteger();
-    try (var pool = new SimpleThreadPool(3)) {
-      for (int i=0;i<12;i++) pool.submit(n::incrementAndGet);
-      Thread.sleep(250);
-    }
-    System.out.println("done=" + n.get());
-  }
+import java.util.*;
+
+public final class NaiveThumbs {
+  public static int run(int n){ int c=0; for(int i=0;i<n;i++) c++; return c; } // unbounded threads in real life
 }
 
 ```
@@ -64,67 +55,36 @@ or distributed details behind it.
 
 ### Stage 2 — Encode the solution
 ```java
-package com.buildwithwaqar.patterns.concurrency.threadpool;
+package com.buildwithwaqar.patterns.concurrency.threadpool.problem;
 
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.*;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.*;
+import java.util.concurrent.locks.*;
+import java.util.function.*;
 
-/** Educational pool — prefer Executors / virtual threads in real code. */
-public final class SimpleThreadPool implements AutoCloseable {
-    private final BlockingQueue<Runnable> queue = new LinkedBlockingQueue<>();
-    private final Thread[] workers;
-    private final AtomicBoolean open = new AtomicBoolean(true);
-
-    public SimpleThreadPool(int size) {
-        workers = new Thread[size];
-        for (int i = 0; i < size; i++) {
-            workers[i] = Thread.ofVirtual().name("worker-" + i).start(() -> {
-                while (open.get() || !queue.isEmpty()) {
-                    try {
-                        var task = queue.poll(50, java.util.concurrent.TimeUnit.MILLISECONDS);
-                        if (task != null) task.run();
-                    } catch (InterruptedException e) {
-                        Thread.currentThread().interrupt();
-                        return;
-                    }
-                }
-            });
-        }
-    }
-
-    public void submit(Runnable task) {
-        if (!open.get()) throw new IllegalStateException("closed");
-        queue.add(task);
-    }
-
-    @Override
-    public void close() {
-        open.set(false);
-        for (var w : workers) {
-            try { w.join(1000); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
-        }
-    }
+final class SimpleThreadPool {
+  private final ExecutorService pool;
+  SimpleThreadPool(int n){ pool=Executors.newFixedThreadPool(n); }
+  <T> Future<T> submit(Callable<T> c){ return pool.submit(c); }
+  void shutdown(){ pool.shutdown(); }
 }
 
 ```
 
 ### Stage 3 — Runnable main
 ```java
-package com.buildwithwaqar.patterns.concurrency.threadpool;
-
-import com.buildwithwaqar.patterns.concurrency.threadpool.SimpleThreadPool;
-import java.util.concurrent.atomic.AtomicInteger;
-/** Problem: cap concurrent thumbnail jobs so the box is not fork-bombed. */
-public final class UseCaseDemo {
-  public static void main(String[] a) throws Exception {
-    System.out.println("=== Thread Pool problem: thumbnail jobs ===");
-    var n = new AtomicInteger();
-    try (var pool = new SimpleThreadPool(3)) {
-      for (int i=0;i<12;i++) pool.submit(n::incrementAndGet);
-      Thread.sleep(250);
-    }
-    System.out.println("done=" + n.get());
+package com.buildwithwaqar.patterns.concurrency.threadpool.problem;
+import java.util.*; import java.util.concurrent.*; import java.util.concurrent.atomic.*;
+public final class ProblemDemo {
+  public static void main(String[] args) throws Exception {
+    System.out.println("=== Thread Pool: cap thumbnail jobs ===");
+    System.out.println("--- naive ---"); System.out.println(NaiveThumbs.run(5));
+System.out.println("--- thread pool ---");
+var pool=new SimpleThreadPool(2); List<Future<Integer>> fs=new ArrayList<>();
+for(int i=0;i<5;i++){ int id=i; fs.add(pool.submit(() -> id*id)); }
+System.out.println(fs.stream().map(f -> { try { return f.get(); } catch(Exception e){ throw new RuntimeException(e);} }).toList());
+pool.shutdown();
   }
 }
 
@@ -134,8 +94,11 @@ public final class UseCaseDemo {
 Narrate each line. Do not invent numbers on camera.
 
 ```text
-=== Thread Pool problem: thumbnail jobs ===
-done=12
+=== Thread Pool: cap thumbnail jobs ===
+--- naive ---
+5
+--- thread pool ---
+[0, 1, 4, 9, 16]
 ```
 
 Trace: match each printed line to a stage above. Fork the repo, set `JAVA_HOME` to JDK 25,
@@ -217,65 +180,3 @@ Java 25 / Zazr take, then slow down for when NOT to use Thread Pool.
 **[10:30]** *(interview + recap)*
 Two interview questions, three takeaways, link the GitHub episode folder. I am Waqar —
 see you in the next one.
-
-
-## Studio Notes for Build with Waqar
-When you record this episode, keep the energy practical. Start with the product pain, not the pattern name. Viewers stay when they feel the bug before they learn the label. In CapCut, overlay the slide number in the corner and cut idle IDE scrolling. If a code block is long, zoom CapCut to the highlighted lines rather than shrinking the font on the slide. Re-run the Demo live once if your machine allows — viewers trust a terminal more than a screenshot. Finally, end with a single actionable challenge: ask them to open the repo, run the Demo, and mutate one assertion in the test to see the failure. That turns passive watching into practice.
-
-### CapCut Checklist
-- Import `slides.pdf` or the PNG sequence at 1920×1080.
-- Align voiceover to the timestamps in the Video Script section.
-- Keep lower-thirds short: pattern name + one-line intent.
-- Add a pinned comment with the GitHub path to this episode folder.
-
-### Common Recording Mistakes
-- Reading UML without showing running output.
-- Skipping the "when NOT to use" section — that is what seniors listen for.
-- Rushing trade-offs. Slow down here; it is interview gold.
-- Forgetting to mention the test class name so learners can `mvn -Dtest=... test`.
-
-
-## Practice Drill (Do This After Watching)
-1. Clone `waqarys/java-design-patterns` and set `JAVA_HOME` to JDK 25.
-2. Run the episode Demo (`mvn -q exec:java -Dexec.mainClass=...` or `java -cp ... Demo`).
-3. Break the implementation on purpose; watch the test fail; restore it.
-4. Write one alternative design in a scratch branch and compare readability.
-5. Explain the pattern out loud in sixty seconds without looking at notes — that is your introspective for interviews.
-
-## Glossary
-- **Force:** the design pressure (extensibility, coupling, allocation, testability) that makes a pattern worth considering.
-- **Role:** a participant name from the pattern (Context, Strategy, Client, Creator, Product).
-- **Smell:** a code signal that a force is unresolved (telescoping constructors, instanceof forests, god classes).
-- **Modernization:** the Java 25 / Zazr encoding that preserves the force-resolution with less ceremony.
-
-
-## Problem Deep Dive
-The concrete problem for this episode is: **Cap concurrent thumbnail jobs**.
-
-Walk the naive path slowly on camera. Ask viewers what breaks first when requirements change —
-a new file to load, a new payment currency, a new saga step, a new illegal state transition.
-That question is the force. The pattern is just the name we give the force once we have felt it.
-
-Then open the solution types and show the boundary: what the rest of the app is allowed to
-depend on, and what stays hidden. Highlight how the runnable main prints a meaningful trace —
-happy path and at least one failure path — so CapCut can cut between IDE and terminal without
-inventing numbers.
-
-Finally, spend a full minute on trade-offs. Seniors stay for the "when not". Juniors need the
-happy path. Your job on Build with Waqar is both.
-
-
-## Studio Notes for Build with Waqar
-When you record this episode, keep the energy practical. Start with the product pain, not the pattern name. Viewers stay when they feel the bug before they learn the label. In CapCut, overlay the slide number in the corner and cut idle IDE scrolling. If a code block is long, zoom CapCut to the highlighted lines rather than shrinking the font on the slide. Re-run the Demo live once if your machine allows — viewers trust a terminal more than a screenshot. Finally, end with a single actionable challenge: ask them to open the repo, run the Demo, and mutate one assertion in the test to see the failure. That turns passive watching into practice.
-
-### CapCut Checklist
-- Import `slides.pdf` or the PNG sequence at 1920×1080.
-- Align voiceover to the timestamps in the Video Script section.
-- Keep lower-thirds short: pattern name + one-line intent.
-- Add a pinned comment with the GitHub path to this episode folder.
-
-### Common Recording Mistakes
-- Reading UML without showing running output.
-- Skipping the "when NOT to use" section — that is what seniors listen for.
-- Rushing trade-offs. Slow down here; it is interview gold.
-- Forgetting to mention the test class name so learners can `mvn -Dtest=... test`.

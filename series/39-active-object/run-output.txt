@@ -1,2 +1,5 @@
-=== Active Object problem: serialized ledger ===
-balance=7
+=== Active Object: serialize ledger ===
+--- naive ---
+5
+--- active object ---
+bal=15

@@ -1,6 +1,6 @@
 # Active Object
 
-**Season:** 5 · Concurrency · **Category:** Concurrency · **Level:** Intermediate · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar
+**Season:** 5 · Concurrency · **Category:** Concurrency · **Level:** Intermediate · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar
 
 ## Problem
 **Serialize ledger mutations on one servant**
@@ -24,18 +24,12 @@ failure, or couple call sites to a third-party shape. That feels fast on day one
 on day thirty.
 
 ```java
-package com.buildwithwaqar.patterns.concurrency.activeobject;
+package com.buildwithwaqar.patterns.concurrency.activeobject.problem;
 
-import com.buildwithwaqar.patterns.concurrency.activeobject.ActiveObject;
-/** Problem: serialize ledger mutations without external locks in callers. */
-public final class UseCaseDemo {
-  public static void main(String[] a) throws Exception {
-    System.out.println("=== Active Object problem: serialized ledger ===");
-    try (var ao = new ActiveObject()) {
-      ao.add(10).get(); ao.add(-3).get();
-      System.out.println("balance=" + ao.get().get());
-    }
-  }
+import java.util.*;
+
+public final class NaiveLedger {
+  private int bal; public void deposit(int c){ bal+=c; } public int bal(){ return bal; }
 }
 
 ```
@@ -61,48 +55,36 @@ or distributed details behind it.
 
 ### Stage 2 — Encode the solution
 ```java
-package com.buildwithwaqar.patterns.concurrency.activeobject;
+package com.buildwithwaqar.patterns.concurrency.activeobject.problem;
 
-import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
+import java.util.*;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.*;
+import java.util.concurrent.locks.*;
+import java.util.function.*;
 
-/** Active Object — all calls run on a dedicated async servant thread. */
-public final class ActiveObject implements AutoCloseable {
-    private final ExecutorService servant = Executors.newSingleThreadExecutor(r -> {
-        var t = new Thread(r, "active-object");
-        t.setDaemon(true);
-        return t;
-    });
-    private int value;
-
-    public Future<Integer> add(int delta) {
-        return servant.submit(() -> { value += delta; return value; });
-    }
-
-    public Future<Integer> get() {
-        return servant.submit((Callable<Integer>) () -> value);
-    }
-
-    @Override public void close() { servant.shutdownNow(); }
+final class ActiveLedger implements AutoCloseable {
+  private int bal; private final ExecutorService servant=Executors.newSingleThreadExecutor();
+  CompletableFuture<Void> deposit(int c){ return CompletableFuture.runAsync(() -> { bal+=c; }, servant); }
+  CompletableFuture<Integer> balance(){ return CompletableFuture.supplyAsync(() -> bal, servant); }
+  public void close(){ servant.shutdown(); }
 }
 
 ```
 
 ### Stage 3 — Runnable main
 ```java
-package com.buildwithwaqar.patterns.concurrency.activeobject;
-
-import com.buildwithwaqar.patterns.concurrency.activeobject.ActiveObject;
-/** Problem: serialize ledger mutations without external locks in callers. */
-public final class UseCaseDemo {
-  public static void main(String[] a) throws Exception {
-    System.out.println("=== Active Object problem: serialized ledger ===");
-    try (var ao = new ActiveObject()) {
-      ao.add(10).get(); ao.add(-3).get();
-      System.out.println("balance=" + ao.get().get());
-    }
+package com.buildwithwaqar.patterns.concurrency.activeobject.problem;
+import java.util.*; import java.util.concurrent.*; import java.util.concurrent.atomic.*;
+public final class ProblemDemo {
+  public static void main(String[] args) throws Exception {
+    System.out.println("=== Active Object: serialize ledger ===");
+    System.out.println("--- naive ---"); var n=new NaiveLedger(); n.deposit(5); System.out.println(n.bal());
+System.out.println("--- active object ---");
+try (var a=new ActiveLedger()) {
+  a.deposit(10).join(); a.deposit(5).join();
+  System.out.println("bal="+a.balance().join());
+}
   }
 }
 
@@ -112,8 +94,11 @@ public final class UseCaseDemo {
 Narrate each line. Do not invent numbers on camera.
 
 ```text
-=== Active Object problem: serialized ledger ===
-balance=7
+=== Active Object: serialize ledger ===
+--- naive ---
+5
+--- active object ---
+bal=15
 ```
 
 Trace: match each printed line to a stage above. Fork the repo, set `JAVA_HOME` to JDK 25,
@@ -195,65 +180,3 @@ Java 25 / Zazr take, then slow down for when NOT to use Active Object.
 **[10:30]** *(interview + recap)*
 Two interview questions, three takeaways, link the GitHub episode folder. I am Waqar —
 see you in the next one.
-
-
-## Studio Notes for Build with Waqar
-When you record this episode, keep the energy practical. Start with the product pain, not the pattern name. Viewers stay when they feel the bug before they learn the label. In CapCut, overlay the slide number in the corner and cut idle IDE scrolling. If a code block is long, zoom CapCut to the highlighted lines rather than shrinking the font on the slide. Re-run the Demo live once if your machine allows — viewers trust a terminal more than a screenshot. Finally, end with a single actionable challenge: ask them to open the repo, run the Demo, and mutate one assertion in the test to see the failure. That turns passive watching into practice.
-
-### CapCut Checklist
-- Import `slides.pdf` or the PNG sequence at 1920×1080.
-- Align voiceover to the timestamps in the Video Script section.
-- Keep lower-thirds short: pattern name + one-line intent.
-- Add a pinned comment with the GitHub path to this episode folder.
-
-### Common Recording Mistakes
-- Reading UML without showing running output.
-- Skipping the "when NOT to use" section — that is what seniors listen for.
-- Rushing trade-offs. Slow down here; it is interview gold.
-- Forgetting to mention the test class name so learners can `mvn -Dtest=... test`.
-
-
-## Practice Drill (Do This After Watching)
-1. Clone `waqarys/java-design-patterns` and set `JAVA_HOME` to JDK 25.
-2. Run the episode Demo (`mvn -q exec:java -Dexec.mainClass=...` or `java -cp ... Demo`).
-3. Break the implementation on purpose; watch the test fail; restore it.
-4. Write one alternative design in a scratch branch and compare readability.
-5. Explain the pattern out loud in sixty seconds without looking at notes — that is your introspective for interviews.
-
-## Glossary
-- **Force:** the design pressure (extensibility, coupling, allocation, testability) that makes a pattern worth considering.
-- **Role:** a participant name from the pattern (Context, Strategy, Client, Creator, Product).
-- **Smell:** a code signal that a force is unresolved (telescoping constructors, instanceof forests, god classes).
-- **Modernization:** the Java 25 / Zazr encoding that preserves the force-resolution with less ceremony.
-
-
-## Problem Deep Dive
-The concrete problem for this episode is: **Serialize ledger mutations on one servant**.
-
-Walk the naive path slowly on camera. Ask viewers what breaks first when requirements change —
-a new file to load, a new payment currency, a new saga step, a new illegal state transition.
-That question is the force. The pattern is just the name we give the force once we have felt it.
-
-Then open the solution types and show the boundary: what the rest of the app is allowed to
-depend on, and what stays hidden. Highlight how the runnable main prints a meaningful trace —
-happy path and at least one failure path — so CapCut can cut between IDE and terminal without
-inventing numbers.
-
-Finally, spend a full minute on trade-offs. Seniors stay for the "when not". Juniors need the
-happy path. Your job on Build with Waqar is both.
-
-
-## Studio Notes for Build with Waqar
-When you record this episode, keep the energy practical. Start with the product pain, not the pattern name. Viewers stay when they feel the bug before they learn the label. In CapCut, overlay the slide number in the corner and cut idle IDE scrolling. If a code block is long, zoom CapCut to the highlighted lines rather than shrinking the font on the slide. Re-run the Demo live once if your machine allows — viewers trust a terminal more than a screenshot. Finally, end with a single actionable challenge: ask them to open the repo, run the Demo, and mutate one assertion in the test to see the failure. That turns passive watching into practice.
-
-### CapCut Checklist
-- Import `slides.pdf` or the PNG sequence at 1920×1080.
-- Align voiceover to the timestamps in the Video Script section.
-- Keep lower-thirds short: pattern name + one-line intent.
-- Add a pinned comment with the GitHub path to this episode folder.
-
-### Common Recording Mistakes
-- Reading UML without showing running output.
-- Skipping the "when NOT to use" section — that is what seniors listen for.
-- Rushing trade-offs. Slow down here; it is interview gold.
-- Forgetting to mention the test class name so learners can `mvn -Dtest=... test`.

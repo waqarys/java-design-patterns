@@ -1,2 +1,5 @@
-=== Virtual Threads problem: massive fan-out ===
+=== Virtual Threads: fan-out HTTP checks ===
+--- naive ---
+200
+--- virtual threads ---
 checks=200

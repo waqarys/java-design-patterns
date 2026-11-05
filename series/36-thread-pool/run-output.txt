@@ -1,2 +1,5 @@
-=== Thread Pool problem: thumbnail jobs ===
-done=12
+=== Thread Pool: cap thumbnail jobs ===
+--- naive ---
+5
+--- thread pool ---
+[0, 1, 4, 9, 16]

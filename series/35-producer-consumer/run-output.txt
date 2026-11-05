@@ -1,10 +1,6 @@
-=== Producer-Consumer problem: bounded frame queue ===
-encode 1
-encode 2
-encode 3
-upload 1
-upload 2
-upload 3
-encode 4
-upload 4
-checksum=10
+=== Producer-Consumer: encoder→uploader queue ===
+--- naive ---
+upload a
+upload b
+--- producer-consumer ---
+uploaded=[a, b, c]

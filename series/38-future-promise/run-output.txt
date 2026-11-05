@@ -1,2 +1,6 @@
-=== Future/Promise problem: async thumbnail ===
-thumbBytes=256 url=https://cdn/x/256.jpg
+=== Future/Promise: async thumbnail URL ===
+--- naive ---
+https://cdn/a.jpg
+--- future ---
+https://cdn/vid.jpg
+caught=id

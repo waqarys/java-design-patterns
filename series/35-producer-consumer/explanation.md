@@ -1,6 +1,6 @@
 # Producer-Consumer
 
-**Season:** 5 · Concurrency · **Category:** Concurrency · **Level:** Intermediate · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar
+**Season:** 5 · Concurrency · **Category:** Concurrency · **Level:** Intermediate · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar
 
 ## Problem
 **Bounded queue between encoder and uploader**
@@ -24,21 +24,12 @@ failure, or couple call sites to a third-party shape. That feels fast on day one
 on day thirty.
 
 ```java
-package com.buildwithwaqar.patterns.concurrency.producerconsumer;
+package com.buildwithwaqar.patterns.concurrency.producerconsumer.problem;
 
-import com.buildwithwaqar.patterns.concurrency.producerconsumer.BoundedQueue;
-import java.util.concurrent.*;
-/** Problem: encoder produces frames; uploader consumes without unbounded memory. */
-public final class UseCaseDemo {
-  public static void main(String[] a) throws Exception {
-    System.out.println("=== Producer-Consumer problem: bounded frame queue ===");
-    var q = new BoundedQueue<Integer>(2);
-    try (var pool = Executors.newVirtualThreadPerTaskExecutor()) {
-      pool.submit(() -> { for (int i=1;i<=4;i++){ q.put(i); System.out.println("encode "+i);} return null; });
-      var sum = pool.submit(() -> { int s=0; for(int i=0;i<4;i++){ int v=q.take(); System.out.println("upload "+v); s+=v;} return s;});
-      System.out.println("checksum=" + sum.get());
-    }
-  }
+import java.util.*;
+
+public final class NaivePipe {
+  public static void run(List<String> jobs){ for(String j: jobs) System.out.println("upload "+j); }
 }
 
 ```
@@ -64,51 +55,41 @@ or distributed details behind it.
 
 ### Stage 2 — Encode the solution
 ```java
-package com.buildwithwaqar.patterns.concurrency.producerconsumer;
+package com.buildwithwaqar.patterns.concurrency.producerconsumer.problem;
 
-import java.util.ArrayDeque;
-import java.util.Queue;
+import java.util.*;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.*;
+import java.util.concurrent.locks.*;
+import java.util.function.*;
 
-public final class BoundedQueue<T> {
-    private final Queue<T> q = new ArrayDeque<>();
-    private final int capacity;
-
-    public BoundedQueue(int capacity) { this.capacity = capacity; }
-
-    public synchronized void put(T item) throws InterruptedException {
-        while (q.size() == capacity) wait();
-        q.add(item);
-        notifyAll();
-    }
-
-    public synchronized T take() throws InterruptedException {
-        while (q.isEmpty()) wait();
-        var item = q.remove();
-        notifyAll();
-        return item;
-    }
-
-    public synchronized int size() { return q.size(); }
+final class BoundedQueue<T> {
+  private final ArrayBlockingQueue<T> q;
+  BoundedQueue(int cap){ q=new ArrayBlockingQueue<>(cap); }
+  void put(T t) throws InterruptedException { q.put(t); }
+  T take() throws InterruptedException { return q.take(); }
+  int size(){ return q.size(); }
 }
 
 ```
 
 ### Stage 3 — Runnable main
 ```java
-package com.buildwithwaqar.patterns.concurrency.producerconsumer;
-
-import com.buildwithwaqar.patterns.concurrency.producerconsumer.BoundedQueue;
-import java.util.concurrent.*;
-/** Problem: encoder produces frames; uploader consumes without unbounded memory. */
-public final class UseCaseDemo {
-  public static void main(String[] a) throws Exception {
-    System.out.println("=== Producer-Consumer problem: bounded frame queue ===");
-    var q = new BoundedQueue<Integer>(2);
-    try (var pool = Executors.newVirtualThreadPerTaskExecutor()) {
-      pool.submit(() -> { for (int i=1;i<=4;i++){ q.put(i); System.out.println("encode "+i);} return null; });
-      var sum = pool.submit(() -> { int s=0; for(int i=0;i<4;i++){ int v=q.take(); System.out.println("upload "+v); s+=v;} return s;});
-      System.out.println("checksum=" + sum.get());
-    }
+package com.buildwithwaqar.patterns.concurrency.producerconsumer.problem;
+import java.util.*; import java.util.concurrent.*; import java.util.concurrent.atomic.*;
+public final class ProblemDemo {
+  public static void main(String[] args) throws Exception {
+    System.out.println("=== Producer-Consumer: encoder→uploader queue ===");
+    System.out.println("--- naive ---"); NaivePipe.run(List.of("a","b"));
+System.out.println("--- producer-consumer ---");
+var q=new BoundedQueue<String>(2);
+var done=new CountDownLatch(1); List<String> uploaded=new ArrayList<>();
+Thread consumer=Thread.ofVirtual().start(() -> { try {
+  for(int i=0;i<3;i++) uploaded.add(q.take());
+  done.countDown();
+} catch(InterruptedException e){ Thread.currentThread().interrupt(); }});
+q.put("a"); q.put("b"); q.put("c"); done.await(2, TimeUnit.SECONDS);
+System.out.println("uploaded="+uploaded);
   }
 }
 
@@ -118,16 +99,12 @@ public final class UseCaseDemo {
 Narrate each line. Do not invent numbers on camera.
 
 ```text
-=== Producer-Consumer problem: bounded frame queue ===
-encode 1
-encode 2
-encode 3
-upload 1
-upload 2
-upload 3
-encode 4
-upload 4
-checksum=10
+=== Producer-Consumer: encoder→uploader queue ===
+--- naive ---
+upload a
+upload b
+--- producer-consumer ---
+uploaded=[a, b, c]
 ```
 
 Trace: match each printed line to a stage above. Fork the repo, set `JAVA_HOME` to JDK 25,
@@ -209,65 +186,3 @@ Java 25 / Zazr take, then slow down for when NOT to use Producer-Consumer.
 **[10:30]** *(interview + recap)*
 Two interview questions, three takeaways, link the GitHub episode folder. I am Waqar —
 see you in the next one.
-
-
-## Studio Notes for Build with Waqar
-When you record this episode, keep the energy practical. Start with the product pain, not the pattern name. Viewers stay when they feel the bug before they learn the label. In CapCut, overlay the slide number in the corner and cut idle IDE scrolling. If a code block is long, zoom CapCut to the highlighted lines rather than shrinking the font on the slide. Re-run the Demo live once if your machine allows — viewers trust a terminal more than a screenshot. Finally, end with a single actionable challenge: ask them to open the repo, run the Demo, and mutate one assertion in the test to see the failure. That turns passive watching into practice.
-
-### CapCut Checklist
-- Import `slides.pdf` or the PNG sequence at 1920×1080.
-- Align voiceover to the timestamps in the Video Script section.
-- Keep lower-thirds short: pattern name + one-line intent.
-- Add a pinned comment with the GitHub path to this episode folder.
-
-### Common Recording Mistakes
-- Reading UML without showing running output.
-- Skipping the "when NOT to use" section — that is what seniors listen for.
-- Rushing trade-offs. Slow down here; it is interview gold.
-- Forgetting to mention the test class name so learners can `mvn -Dtest=... test`.
-
-
-## Practice Drill (Do This After Watching)
-1. Clone `waqarys/java-design-patterns` and set `JAVA_HOME` to JDK 25.
-2. Run the episode Demo (`mvn -q exec:java -Dexec.mainClass=...` or `java -cp ... Demo`).
-3. Break the implementation on purpose; watch the test fail; restore it.
-4. Write one alternative design in a scratch branch and compare readability.
-5. Explain the pattern out loud in sixty seconds without looking at notes — that is your introspective for interviews.
-
-## Glossary
-- **Force:** the design pressure (extensibility, coupling, allocation, testability) that makes a pattern worth considering.
-- **Role:** a participant name from the pattern (Context, Strategy, Client, Creator, Product).
-- **Smell:** a code signal that a force is unresolved (telescoping constructors, instanceof forests, god classes).
-- **Modernization:** the Java 25 / Zazr encoding that preserves the force-resolution with less ceremony.
-
-
-## Problem Deep Dive
-The concrete problem for this episode is: **Bounded queue between encoder and uploader**.
-
-Walk the naive path slowly on camera. Ask viewers what breaks first when requirements change —
-a new file to load, a new payment currency, a new saga step, a new illegal state transition.
-That question is the force. The pattern is just the name we give the force once we have felt it.
-
-Then open the solution types and show the boundary: what the rest of the app is allowed to
-depend on, and what stays hidden. Highlight how the runnable main prints a meaningful trace —
-happy path and at least one failure path — so CapCut can cut between IDE and terminal without
-inventing numbers.
-
-Finally, spend a full minute on trade-offs. Seniors stay for the "when not". Juniors need the
-happy path. Your job on Build with Waqar is both.
-
-
-## Studio Notes for Build with Waqar
-When you record this episode, keep the energy practical. Start with the product pain, not the pattern name. Viewers stay when they feel the bug before they learn the label. In CapCut, overlay the slide number in the corner and cut idle IDE scrolling. If a code block is long, zoom CapCut to the highlighted lines rather than shrinking the font on the slide. Re-run the Demo live once if your machine allows — viewers trust a terminal more than a screenshot. Finally, end with a single actionable challenge: ask them to open the repo, run the Demo, and mutate one assertion in the test to see the failure. That turns passive watching into practice.
-
-### CapCut Checklist
-- Import `slides.pdf` or the PNG sequence at 1920×1080.
-- Align voiceover to the timestamps in the Video Script section.
-- Keep lower-thirds short: pattern name + one-line intent.
-- Add a pinned comment with the GitHub path to this episode folder.
-
-### Common Recording Mistakes
-- Reading UML without showing running output.
-- Skipping the "when NOT to use" section — that is what seniors listen for.
-- Rushing trade-offs. Slow down here; it is interview gold.
-- Forgetting to mention the test class name so learners can `mvn -Dtest=... test`.

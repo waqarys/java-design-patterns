@@ -1,4 +1,6 @@
-=== Read-Write Lock problem: manifest cache ===
-manifest-v3
-manifest-v3
-loads=1
+=== Read-Write Lock: manifest cache ===
+--- naive ---
+v1
+v2
+--- rw lock ---
+final=v2
