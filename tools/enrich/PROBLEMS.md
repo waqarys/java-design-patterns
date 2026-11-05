@@ -19,7 +19,7 @@
 | 14 | Proxy | Lazy-load heavy image assets |
 | 15 | Chain | Route support tickets billing→tech→general |
 | 16 | Command | Undoable editor keystrokes |
-| 17 | Interpreter | Evaluate arithmetic AST (2+3)*4 |
+| 17 | Interpreter | Pricing-rule DSL: base + percent + flat discounts |
 | 18 | Iterator | Round-robin assign jobs to workers |
 | 19 | Mediator | Chat room without user-to-user coupling |
 | 20 | Memento | Save/restore text editor snapshots |
@@ -35,7 +35,7 @@
 | 30 | Circuit Breaker | Protect calls to flaky rates API |
 | 31 | Retry | Publish event despite transient broker errors |
 | 32 | Event Sourcing/CQRS | Bank account ledger + balance read model |
-| 33 | Saga | Order: reserve→charge→ship with reverse compensations |
+| 33 | Saga | Order booking: orchestration + event-bus choreography with compensations |
 | 34 | Outbox | Atomically save order + outbox row, relay later |
 | 35 | Producer-Consumer | Bounded queue between encoder and uploader |
 | 36 | Thread Pool | Cap concurrent thumbnail jobs |
@@ -49,22 +49,22 @@
 | 44 | Try | Parse config int with recovery |
 | 45 | Validation | Signup form accumulates all field errors |
 | 46 | Lazy/IO | Defer expensive report until edge |
-| 47 | Functor/Applicative/Monad | Map/flatMap Option via type-class witness |
+| 47 | Functor/Applicative/Monad | Combine async user+order fetches into a dashboard view |
 | 48 | Monoid | Fold invoice line totals / log strings |
 | 49 | Foldable/Traverse | Fold scores; traverse validated IDs |
 | 50 | Currying/Composition | Build price pipeline from small functions |
-| 51 | Memoization | Cache fib/square for hot keys |
-| 52 | Smart Constructors | Email that cannot hold invalid strings |
+| 51 | Memoization | Cache coin-change DP / tax-rate lookups with call-count trace |
+| 52 | Smart Constructors | Money, Email, IBAN value objects with validated creation |
 | 53 | ADTs Sealed | Exhaustive Payment describe |
 | 54 | Reader | Load+merge config.yaml, secrets.env, flags.json via Env |
 | 55 | Writer | Compute totals while accumulating audit log |
 | 56 | State | Pure RNG / bank balance simulation |
 | 57 | Kleisli | Compose parseInt → enrichUser → authorize |
-| 58 | Free | KV-store program interpreted by Map vs logging |
-| 59 | Tagless Final | Console greet with Option test interpreter |
-| 60 | Cake | Wire UserRepo+Email into UserService app |
-| 61 | Type Classes | Explicit Monad dictionary for Option |
+| 58 | Free | Bank-transfer DSL with Map interpreter + logging optimizer |
+| 59 | Tagless Final | User registration against UserRepo/Email/Logger algebras; IO + pure test interpreters |
+| 60 | Cake | Multi-layer repo→service→controller app; test cake swaps fakes |
+| 61 | Type Classes | JSON encoder + Show/Eq for domain records and composites |
 | 62 | Lenses | Update nested city in immutable Person/Address |
 | 63 | Trampoline | Sum 1..100000 without StackOverflowError |
-| 64 | Effect Interpreters | Describe IO report, run at edge |
+| 64 | Effect Interpreters | Read file → call service → write result; prod vs test interpreters |
 | 65 | VAVR vs Zazr | Same Option describe in both libraries |
