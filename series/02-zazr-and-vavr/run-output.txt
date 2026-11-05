@@ -1,5 +1,8 @@
-=== VAVR vs Zazr walkthrough ===
-vavrSome=got 1
-vavrNone=missing
-zazrSome=got 1
-zazrNone=missing
+=== VAVR vs Zazr: same Option describe ===
+--- naive ---
+none
+--- compare ---
+zazr-some:x
+vavr-some:x
+zazr-none
+vavr-none

@@ -1,6 +1,7 @@
-=== ADT / Smart Constructor walkthrough ===
-email=Right(Email[value=waqar@bwq.dev])
-badEmail=Left(invalid email)
-cash 100
-card ****1234 500
-wire IN00 900
+=== ADTs: exhaustive Payment describe ===
+--- naive ---
+card:10
+--- ADT ---
+card ****1234 1999
+cash 500
+wire DE89 10000

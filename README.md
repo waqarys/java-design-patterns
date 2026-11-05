@@ -94,7 +94,7 @@ Suggested playlist order (beginner → advanced).
 - [30. Circuit Breaker](30-circuit-breaker/) — Intermediate — *Protect calls to flaky rates API*
 - [31. Retry](31-retry/) — Intermediate — *Publish event despite transient broker errors*
 - [32. Event Sourcing & CQRS](32-event-sourcing-cqrs/) — Intermediate — *Bank account ledger + balance read model*
-- [33. Saga](33-saga/) — Intermediate — *Order: reserve→charge→ship with reverse compensations*
+- [33. Saga](33-saga/) — Intermediate — *Order booking: orchestration + event-bus choreography with compensations*
 - [34. Transactional Outbox](34-outbox/) — Intermediate — *Atomically save order + outbox row, relay later*
 
 ## Season 5 · Concurrency
@@ -114,12 +114,12 @@ Suggested playlist order (beginner → advanced).
 - [44. Try](44-try/) — Intermediate — *Parse config int with recovery*
 - [45. Validation](45-validation/) — Intermediate — *Signup form accumulates all field errors*
 - [46. Lazy & IO](46-lazy-io/) — Intermediate — *Defer expensive report until edge*
-- [47. Functor, Applicative, Monad](47-functor-applicative-monad/) — Intermediate — *Map/flatMap Option via type-class witness*
+- [47. Functor, Applicative, Monad](47-functor-applicative-monad/) — Intermediate — *Combine async user+order fetches into a dashboard view*
 - [48. Monoid & Semigroup](48-monoid-semigroup/) — Intermediate — *Fold invoice line totals / log strings*
 - [49. Foldable & Traverse](49-foldable-traverse/) — Intermediate — *Fold scores; traverse validated IDs*
 - [50. Currying, Partial Application & Composition](50-currying-composition/) — Intermediate — *Build price pipeline from small functions*
-- [51. Memoization](51-memoization/) — Intermediate — *Cache fib/square for hot keys*
-- [52. Smart Constructors](52-smart-constructors/) — Intermediate — *Email that cannot hold invalid strings*
+- [51. Memoization](51-memoization/) — Intermediate — *Cache coin-change DP / tax-rate lookups with call-count trace*
+- [52. Smart Constructors](52-smart-constructors/) — Intermediate — *Money, Email, IBAN value objects with validated creation*
 - [53. Algebraic Data Types with Sealed Records](53-adts-sealed/) — Intermediate — *Exhaustive Payment describe*
 
 ## Season 7 · Advanced FP
@@ -128,12 +128,12 @@ Suggested playlist order (beginner → advanced).
 - [55. Writer Monad](55-writer/) — Advanced — *Compute totals while accumulating audit log*
 - [56. State Monad](56-state/) — Advanced — *Pure RNG / bank balance simulation*
 - [57. Kleisli Composition](57-kleisli/) — Advanced — *Compose parseInt → enrichUser → authorize*
-- [58. Free Monad](58-free-monad/) — Advanced — *KV-store program interpreted by Map vs logging*
-- [59. Tagless Final](59-tagless-final/) — Advanced — *Console greet with Option test interpreter*
-- [60. Cake Pattern](60-cake-pattern/) — Advanced — *Wire UserRepo+Email into UserService app*
-- [61. Type Classes via Dictionaries](61-type-classes/) — Advanced — *Explicit Monad dictionary for Option*
+- [58. Free Monad](58-free-monad/) — Advanced — *Bank-transfer DSL with Map interpreter + logging optimizer*
+- [59. Tagless Final](59-tagless-final/) — Advanced — *User registration against UserRepo/Email/Logger algebras; IO + pure test interpreters*
+- [60. Cake Pattern](60-cake-pattern/) — Advanced — *Multi-layer repo→service→controller app; test cake swaps fakes*
+- [61. Type Classes via Dictionaries](61-type-classes/) — Advanced — *JSON encoder + Show/Eq for domain records and composites*
 - [62. Lenses & Optics](62-lenses-optics/) — Advanced — *Update nested city in immutable Person/Address*
 - [63. Trampolining & Stack Safety](63-trampolining/) — Advanced — *Sum 1..100000 without StackOverflowError*
-- [64. Effect Systems & Interpreters](64-effect-interpreters/) — Advanced — *Describe IO report, run at edge*
+- [64. Effect Systems & Interpreters](64-effect-interpreters/) — Advanced — *Read file → call service → write result; prod vs test interpreters*
 - [65. VAVR vs Zazr Deep Dive](65-vavr-vs-zazr/) — Advanced — *Same Option describe in both libraries*
 
