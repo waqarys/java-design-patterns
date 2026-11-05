@@ -82,7 +82,22 @@ def render(s, path, idx, total, title):
     k = s["kind"]
     fig = canvas(None if k == "title" else s["heading"], idx, total, title)
     if k == "title":
-        fig.text(0.5, 0.58, s["heading"], fontsize=56 if len(s["heading"]) < 28 else 40, ha="center", color=FG)
+        # Heading: wrap long titles (e.g. LeetCode "0003. Longest Substring…") to ≤2 lines.
+        heading = (s.get("heading") or "").strip()
+        if len(heading) < 28:
+            h_size, h_width = 56, 28
+        elif len(heading) < 42:
+            h_size, h_width = 44, 36
+        else:
+            h_size, h_width = 36, 42
+        h_lines = textwrap.wrap(heading, width=h_width)[:2]
+        if len(textwrap.wrap(heading, width=h_width)) > 2 and h_lines:
+            h_lines[-1] = h_lines[-1][: h_width - 1].rstrip(" ·-,") + "…"
+        # Center the heading block around y=0.60
+        h_y = 0.62 if len(h_lines) == 1 else 0.64
+        for hl in h_lines:
+            fig.text(0.5, h_y, hl, fontsize=h_size, ha="center", color=FG)
+            h_y -= 0.07
         # Subtitle: wrap to at most 2 lines, never overflow the 1080p frame.
         sub = (s.get("subtitle") or "").strip()
         if "\n" in sub:
