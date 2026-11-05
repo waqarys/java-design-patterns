@@ -10,3 +10,4 @@ target/
 __pycache__/
 *.pyc
 .mvn/wrapper/maven-wrapper.jar
+.venv/
