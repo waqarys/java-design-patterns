@@ -1,2 +1,6 @@
-=== Observer problem: event fan-out ===
-audit=[video.published]
+=== Observer: video.published fan-out ===
+--- naive ---
+audit v1
+ui v1
+--- observer ---
+[audit:v1, ui:v1]

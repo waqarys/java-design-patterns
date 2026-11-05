@@ -1,3 +1,7 @@
-=== Mediator problem: chat room ===
-bob=[alice: ship it]
-alice=[]
+=== Mediator: chat room ===
+--- naive ---
+Ada->Bob:hi
+--- mediator ---
+bobInbox=[Ada->Bob:hi]
+log=[Ada->Bob:hi]
+caught=missing:Cara

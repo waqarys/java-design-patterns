@@ -1,6 +1,6 @@
 # Command
 
-**Season:** 3 · Behavioral · **Category:** GoF · **Level:** Intermediate · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar
+**Season:** 3 · Behavioral · **Category:** GoF · **Level:** Intermediate · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar
 
 ## Problem
 **Undoable editor keystrokes**
@@ -24,20 +24,15 @@ failure, or couple call sites to a third-party shape. That feels fast on day one
 on day thirty.
 
 ```java
-package com.buildwithwaqar.patterns.gof.behavioral.command;
+package com.buildwithwaqar.patterns.gof.behavioral.command.problem;
 
-import com.buildwithwaqar.patterns.gof.behavioral.command.*;
-/** Problem: text editor needs undoable typing. */
-public final class UseCaseDemo {
-  public static void main(String[] a) {
-    System.out.println("=== Command problem: undoable editor ===");
-    var ed = new Editor(); var bus = new CommandBus();
-    bus.run(new WriteCommand(ed, "Hello "));
-    bus.run(new WriteCommand(ed, "Waqar"));
-    System.out.println("text=" + ed.text());
-    bus.undo();
-    System.out.println("undo=" + ed.text());
-  }
+import java.util.*;
+
+public final class NaiveEditor {
+  private String text="";
+  public void write(String s){ text+=s; }
+  public void undo(){ /* cannot undo */ }
+  public String text(){ return text; }
 }
 
 ```
@@ -63,56 +58,46 @@ or distributed details behind it.
 
 ### Stage 2 — Encode the solution
 ```java
-package com.buildwithwaqar.patterns.gof.behavioral.command;
+package com.buildwithwaqar.patterns.gof.behavioral.command.problem;
 
-import java.util.ArrayDeque;
-import java.util.Deque;
+import java.util.*;
+import java.util.concurrent.*;
+import java.util.function.*;
 
+final class Editor { private final StringBuilder sb=new StringBuilder();
+  void write(String s){ sb.append(s); } void deleteLast(int n){ sb.delete(Math.max(0,sb.length()-n), sb.length()); }
+  String text(){ return sb.toString(); }
+}
 interface Command { void execute(); void undo(); }
-
-final class Editor {
-    private final StringBuilder text = new StringBuilder();
-    void append(String s) { text.append(s); }
-    void deleteLast(int n) { text.delete(Math.max(0, text.length() - n), text.length()); }
-    String text() { return text.toString(); }
+final class WriteCommand implements Command {
+  private final Editor ed; private final String chunk;
+  WriteCommand(Editor ed, String chunk){ this.ed=ed; this.chunk=chunk; }
+  public void execute(){ ed.write(chunk); } public void undo(){ ed.deleteLast(chunk.length()); }
 }
-
-record WriteCommand(Editor editor, String chunk) implements Command {
-    public void execute() { editor.append(chunk); }
-    public void undo() { editor.deleteLast(chunk.length()); }
-}
-
-/** Invoker with undo stack. */
-public final class CommandBus {
-    private final Deque<Command> history = new ArrayDeque<>();
-
-    public void run(Command command) {
-        command.execute();
-        history.push(command);
-    }
-
-    public void undo() {
-        if (!history.isEmpty()) history.pop().undo();
-    }
+final class CommandBus {
+  private final Deque<Command> hist=new ArrayDeque<>();
+  void run(Command c){ c.execute(); hist.push(c); }
+  void undo(){ if(!hist.isEmpty()) hist.pop().undo(); }
 }
 
 ```
 
 ### Stage 3 — Runnable main
 ```java
-package com.buildwithwaqar.patterns.gof.behavioral.command;
+package com.buildwithwaqar.patterns.gof.behavioral.command.problem;
 
-import com.buildwithwaqar.patterns.gof.behavioral.command.*;
-/** Problem: text editor needs undoable typing. */
-public final class UseCaseDemo {
-  public static void main(String[] a) {
-    System.out.println("=== Command problem: undoable editor ===");
-    var ed = new Editor(); var bus = new CommandBus();
-    bus.run(new WriteCommand(ed, "Hello "));
-    bus.run(new WriteCommand(ed, "Waqar"));
-    System.out.println("text=" + ed.text());
-    bus.undo();
-    System.out.println("undo=" + ed.text());
+import java.util.*;
+import java.util.concurrent.*;
+
+public final class ProblemDemo {
+  public static void main(String[] args) {
+    System.out.println("=== Command: undoable editor ===");
+    System.out.println("--- naive ---");
+var n=new NaiveEditor(); n.write("Hi"); n.undo(); System.out.println(n.text());
+System.out.println("--- command ---");
+var ed=new Editor(); var bus=new CommandBus();
+bus.run(new WriteCommand(ed,"Hello")); bus.run(new WriteCommand(ed,"!"));
+System.out.println(ed.text()); bus.undo(); System.out.println("afterUndo="+ed.text());
   }
 }
 
@@ -122,9 +107,12 @@ public final class UseCaseDemo {
 Narrate each line. Do not invent numbers on camera.
 
 ```text
-=== Command problem: undoable editor ===
-text=Hello Waqar
-undo=Hello
+=== Command: undoable editor ===
+--- naive ---
+Hi
+--- command ---
+Hello!
+afterUndo=Hello
 ```
 
 Trace: match each printed line to a stage above. Fork the repo, set `JAVA_HOME` to JDK 25,
@@ -206,65 +194,3 @@ Java 25 / Zazr take, then slow down for when NOT to use Command.
 **[10:30]** *(interview + recap)*
 Two interview questions, three takeaways, link the GitHub episode folder. I am Waqar —
 see you in the next one.
-
-
-## Studio Notes for Build with Waqar
-When you record this episode, keep the energy practical. Start with the product pain, not the pattern name. Viewers stay when they feel the bug before they learn the label. In CapCut, overlay the slide number in the corner and cut idle IDE scrolling. If a code block is long, zoom CapCut to the highlighted lines rather than shrinking the font on the slide. Re-run the Demo live once if your machine allows — viewers trust a terminal more than a screenshot. Finally, end with a single actionable challenge: ask them to open the repo, run the Demo, and mutate one assertion in the test to see the failure. That turns passive watching into practice.
-
-### CapCut Checklist
-- Import `slides.pdf` or the PNG sequence at 1920×1080.
-- Align voiceover to the timestamps in the Video Script section.
-- Keep lower-thirds short: pattern name + one-line intent.
-- Add a pinned comment with the GitHub path to this episode folder.
-
-### Common Recording Mistakes
-- Reading UML without showing running output.
-- Skipping the "when NOT to use" section — that is what seniors listen for.
-- Rushing trade-offs. Slow down here; it is interview gold.
-- Forgetting to mention the test class name so learners can `mvn -Dtest=... test`.
-
-
-## Practice Drill (Do This After Watching)
-1. Clone `waqarys/java-design-patterns` and set `JAVA_HOME` to JDK 25.
-2. Run the episode Demo (`mvn -q exec:java -Dexec.mainClass=...` or `java -cp ... Demo`).
-3. Break the implementation on purpose; watch the test fail; restore it.
-4. Write one alternative design in a scratch branch and compare readability.
-5. Explain the pattern out loud in sixty seconds without looking at notes — that is your introspective for interviews.
-
-## Glossary
-- **Force:** the design pressure (extensibility, coupling, allocation, testability) that makes a pattern worth considering.
-- **Role:** a participant name from the pattern (Context, Strategy, Client, Creator, Product).
-- **Smell:** a code signal that a force is unresolved (telescoping constructors, instanceof forests, god classes).
-- **Modernization:** the Java 25 / Zazr encoding that preserves the force-resolution with less ceremony.
-
-
-## Problem Deep Dive
-The concrete problem for this episode is: **Undoable editor keystrokes**.
-
-Walk the naive path slowly on camera. Ask viewers what breaks first when requirements change —
-a new file to load, a new payment currency, a new saga step, a new illegal state transition.
-That question is the force. The pattern is just the name we give the force once we have felt it.
-
-Then open the solution types and show the boundary: what the rest of the app is allowed to
-depend on, and what stays hidden. Highlight how the runnable main prints a meaningful trace —
-happy path and at least one failure path — so CapCut can cut between IDE and terminal without
-inventing numbers.
-
-Finally, spend a full minute on trade-offs. Seniors stay for the "when not". Juniors need the
-happy path. Your job on Build with Waqar is both.
-
-
-## Studio Notes for Build with Waqar
-When you record this episode, keep the energy practical. Start with the product pain, not the pattern name. Viewers stay when they feel the bug before they learn the label. In CapCut, overlay the slide number in the corner and cut idle IDE scrolling. If a code block is long, zoom CapCut to the highlighted lines rather than shrinking the font on the slide. Re-run the Demo live once if your machine allows — viewers trust a terminal more than a screenshot. Finally, end with a single actionable challenge: ask them to open the repo, run the Demo, and mutate one assertion in the test to see the failure. That turns passive watching into practice.
-
-### CapCut Checklist
-- Import `slides.pdf` or the PNG sequence at 1920×1080.
-- Align voiceover to the timestamps in the Video Script section.
-- Keep lower-thirds short: pattern name + one-line intent.
-- Add a pinned comment with the GitHub path to this episode folder.
-
-### Common Recording Mistakes
-- Reading UML without showing running output.
-- Skipping the "when NOT to use" section — that is what seniors listen for.
-- Rushing trade-offs. Slow down here; it is interview gold.
-- Forgetting to mention the test class name so learners can `mvn -Dtest=... test`.

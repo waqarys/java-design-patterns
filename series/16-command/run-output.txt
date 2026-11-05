@@ -1,3 +1,6 @@
-=== Command problem: undoable editor ===
-text=Hello Waqar
-undo=Hello
+=== Command: undoable editor ===
+--- naive ---
+Hi
+--- command ---
+Hello!
+afterUndo=Hello

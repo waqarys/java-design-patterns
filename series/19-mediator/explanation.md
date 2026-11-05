@@ -1,6 +1,6 @@
 # Mediator
 
-**Season:** 3 · Behavioral · **Category:** GoF · **Level:** Intermediate · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar
+**Season:** 3 · Behavioral · **Category:** GoF · **Level:** Intermediate · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar
 
 ## Problem
 **Chat room without user-to-user coupling**
@@ -24,20 +24,12 @@ failure, or couple call sites to a third-party shape. That feels fast on day one
 on day thirty.
 
 ```java
-package com.buildwithwaqar.patterns.gof.behavioral.mediator;
+package com.buildwithwaqar.patterns.gof.behavioral.mediator.problem;
 
-import com.buildwithwaqar.patterns.gof.behavioral.mediator.*;
-/** Problem: users chat without holding references to each other. */
-public final class UseCaseDemo {
-  public static void main(String[] a) {
-    System.out.println("=== Mediator problem: chat room ===");
-    var room = new ChatRoom();
-    var alice = new User("alice", room);
-    var bob = new User("bob", room);
-    alice.send("ship it");
-    System.out.println("bob=" + bob.inbox());
-    System.out.println("alice=" + alice.inbox());
-  }
+import java.util.*;
+
+public final class NaiveChat {
+  public static void dm(String from, String to, String msg){ System.out.println(from+"->"+to+":"+msg); }
 }
 
 ```
@@ -63,65 +55,41 @@ or distributed details behind it.
 
 ### Stage 2 — Encode the solution
 ```java
-package com.buildwithwaqar.patterns.gof.behavioral.mediator;
+package com.buildwithwaqar.patterns.gof.behavioral.mediator.problem;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.*;
+import java.util.function.*;
 
-interface ChatMediator {
-    void register(User user);
-    void send(String from, String message);
-}
-
-public final class ChatRoom implements ChatMediator {
-    private final List<User> users = new ArrayList<>();
-    private final List<String> log = new ArrayList<>();
-
-    public void register(User user) { users.add(user); }
-
-    public void send(String from, String message) {
-        var line = from + ": " + message;
-        log.add(line);
-        for (var u : users) if (!u.name().equals(from)) u.receive(line);
-    }
-
-    List<String> log() { return List.copyOf(log); }
-}
-
-final class User {
-    private final String name;
-    private final ChatMediator mediator;
-    private final List<String> inbox = new ArrayList<>();
-
-    User(String name, ChatMediator mediator) {
-        this.name = name;
-        this.mediator = mediator;
-        mediator.register(this);
-    }
-
-    String name() { return name; }
-    void send(String msg) { mediator.send(name, msg); }
-    void receive(String msg) { inbox.add(msg); }
-    List<String> inbox() { return List.copyOf(inbox); }
+final class ChatRoom {
+  private final Map<String, Consumer<String>> users = new HashMap<>();
+  private final List<String> log = new ArrayList<>();
+  void join(String name, Consumer<String> inbox){ users.put(name, inbox); }
+  void send(String from, String to, String msg){
+    var inbox = users.get(to);
+    if (inbox==null) throw new IllegalArgumentException("missing:"+to);
+    String line = from+"->"+to+":"+msg; log.add(line); inbox.accept(line);
+  }
+  List<String> log(){ return List.copyOf(log); }
 }
 
 ```
 
 ### Stage 3 — Runnable main
 ```java
-package com.buildwithwaqar.patterns.gof.behavioral.mediator;
-
-import com.buildwithwaqar.patterns.gof.behavioral.mediator.*;
-/** Problem: users chat without holding references to each other. */
-public final class UseCaseDemo {
-  public static void main(String[] a) {
-    System.out.println("=== Mediator problem: chat room ===");
-    var room = new ChatRoom();
-    var alice = new User("alice", room);
-    var bob = new User("bob", room);
-    alice.send("ship it");
-    System.out.println("bob=" + bob.inbox());
-    System.out.println("alice=" + alice.inbox());
+package com.buildwithwaqar.patterns.gof.behavioral.mediator.problem;
+import java.util.*; import java.util.concurrent.*;
+public final class ProblemDemo {
+  public static void main(String[] args) throws Exception {
+    System.out.println("=== Mediator: chat room ===");
+    System.out.println("--- naive ---"); NaiveChat.dm("Ada","Bob","hi");
+System.out.println("--- mediator ---");
+var room=new ChatRoom(); List<String> bob=new ArrayList<>();
+room.join("Ada", m->{}); room.join("Bob", bob::add);
+room.send("Ada","Bob","hi");
+System.out.println("bobInbox="+bob); System.out.println("log="+room.log());
+try { room.send("Ada","Cara","x"); } catch (IllegalArgumentException e){ System.out.println("caught="+e.getMessage()); }
   }
 }
 
@@ -131,9 +99,13 @@ public final class UseCaseDemo {
 Narrate each line. Do not invent numbers on camera.
 
 ```text
-=== Mediator problem: chat room ===
-bob=[alice: ship it]
-alice=[]
+=== Mediator: chat room ===
+--- naive ---
+Ada->Bob:hi
+--- mediator ---
+bobInbox=[Ada->Bob:hi]
+log=[Ada->Bob:hi]
+caught=missing:Cara
 ```
 
 Trace: match each printed line to a stage above. Fork the repo, set `JAVA_HOME` to JDK 25,
@@ -215,65 +187,3 @@ Java 25 / Zazr take, then slow down for when NOT to use Mediator.
 **[10:30]** *(interview + recap)*
 Two interview questions, three takeaways, link the GitHub episode folder. I am Waqar —
 see you in the next one.
-
-
-## Studio Notes for Build with Waqar
-When you record this episode, keep the energy practical. Start with the product pain, not the pattern name. Viewers stay when they feel the bug before they learn the label. In CapCut, overlay the slide number in the corner and cut idle IDE scrolling. If a code block is long, zoom CapCut to the highlighted lines rather than shrinking the font on the slide. Re-run the Demo live once if your machine allows — viewers trust a terminal more than a screenshot. Finally, end with a single actionable challenge: ask them to open the repo, run the Demo, and mutate one assertion in the test to see the failure. That turns passive watching into practice.
-
-### CapCut Checklist
-- Import `slides.pdf` or the PNG sequence at 1920×1080.
-- Align voiceover to the timestamps in the Video Script section.
-- Keep lower-thirds short: pattern name + one-line intent.
-- Add a pinned comment with the GitHub path to this episode folder.
-
-### Common Recording Mistakes
-- Reading UML without showing running output.
-- Skipping the "when NOT to use" section — that is what seniors listen for.
-- Rushing trade-offs. Slow down here; it is interview gold.
-- Forgetting to mention the test class name so learners can `mvn -Dtest=... test`.
-
-
-## Practice Drill (Do This After Watching)
-1. Clone `waqarys/java-design-patterns` and set `JAVA_HOME` to JDK 25.
-2. Run the episode Demo (`mvn -q exec:java -Dexec.mainClass=...` or `java -cp ... Demo`).
-3. Break the implementation on purpose; watch the test fail; restore it.
-4. Write one alternative design in a scratch branch and compare readability.
-5. Explain the pattern out loud in sixty seconds without looking at notes — that is your introspective for interviews.
-
-## Glossary
-- **Force:** the design pressure (extensibility, coupling, allocation, testability) that makes a pattern worth considering.
-- **Role:** a participant name from the pattern (Context, Strategy, Client, Creator, Product).
-- **Smell:** a code signal that a force is unresolved (telescoping constructors, instanceof forests, god classes).
-- **Modernization:** the Java 25 / Zazr encoding that preserves the force-resolution with less ceremony.
-
-
-## Problem Deep Dive
-The concrete problem for this episode is: **Chat room without user-to-user coupling**.
-
-Walk the naive path slowly on camera. Ask viewers what breaks first when requirements change —
-a new file to load, a new payment currency, a new saga step, a new illegal state transition.
-That question is the force. The pattern is just the name we give the force once we have felt it.
-
-Then open the solution types and show the boundary: what the rest of the app is allowed to
-depend on, and what stays hidden. Highlight how the runnable main prints a meaningful trace —
-happy path and at least one failure path — so CapCut can cut between IDE and terminal without
-inventing numbers.
-
-Finally, spend a full minute on trade-offs. Seniors stay for the "when not". Juniors need the
-happy path. Your job on Build with Waqar is both.
-
-
-## Studio Notes for Build with Waqar
-When you record this episode, keep the energy practical. Start with the product pain, not the pattern name. Viewers stay when they feel the bug before they learn the label. In CapCut, overlay the slide number in the corner and cut idle IDE scrolling. If a code block is long, zoom CapCut to the highlighted lines rather than shrinking the font on the slide. Re-run the Demo live once if your machine allows — viewers trust a terminal more than a screenshot. Finally, end with a single actionable challenge: ask them to open the repo, run the Demo, and mutate one assertion in the test to see the failure. That turns passive watching into practice.
-
-### CapCut Checklist
-- Import `slides.pdf` or the PNG sequence at 1920×1080.
-- Align voiceover to the timestamps in the Video Script section.
-- Keep lower-thirds short: pattern name + one-line intent.
-- Add a pinned comment with the GitHub path to this episode folder.
-
-### Common Recording Mistakes
-- Reading UML without showing running output.
-- Skipping the "when NOT to use" section — that is what seniors listen for.
-- Rushing trade-offs. Slow down here; it is interview gold.
-- Forgetting to mention the test class name so learners can `mvn -Dtest=... test`.

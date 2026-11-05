@@ -1,6 +1,6 @@
 # Chain of Responsibility
 
-**Season:** 3 · Behavioral · **Category:** GoF · **Level:** Intermediate · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar
+**Season:** 3 · Behavioral · **Category:** GoF · **Level:** Intermediate · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar
 
 ## Problem
 **Route support tickets billing→tech→general**
@@ -24,16 +24,15 @@ failure, or couple call sites to a third-party shape. That feels fast on day one
 on day thirty.
 
 ```java
-package com.buildwithwaqar.patterns.gof.behavioral.chain;
+package com.buildwithwaqar.patterns.gof.behavioral.chain.problem;
 
-import com.buildwithwaqar.patterns.gof.behavioral.chain.*;
-/** Problem: route support tickets without a giant if/else in the controller. */
-public final class UseCaseDemo {
-  public static void main(String[] a) {
-    System.out.println("=== Chain problem: support ticket routing ===");
-    var root = new BillingHandler();
-    root.linkWith(new TechHandler()).linkWith(new GeneralHandler());
-    for (String t : new String[]{"bill:invoice", "tech:5xx", "hi"}) System.out.println(t + "->" + root.handle(t));
+import java.util.*;
+
+public final class NaiveRouter {
+  public static String route(String type){
+    if("billing".equals(type)) return "billing-desk";
+    if("tech".equals(type)) return "tech-desk";
+    return "general-desk";
   }
 }
 
@@ -60,55 +59,45 @@ or distributed details behind it.
 
 ### Stage 2 — Encode the solution
 ```java
-package com.buildwithwaqar.patterns.gof.behavioral.chain;
+package com.buildwithwaqar.patterns.gof.behavioral.chain.problem;
 
-public abstract class SupportHandler {
-    private SupportHandler next;
+import java.util.*;
+import java.util.concurrent.*;
+import java.util.function.*;
 
-    public SupportHandler linkWith(SupportHandler next) {
-        this.next = next;
-        return next;
-    }
-
-    public final String handle(String request) {
-        var result = doHandle(request);
-        if (result != null) return result;
-        return next != null ? next.handle(request) : "unhandled:" + request;
-    }
-
-    protected abstract String doHandle(String request);
+abstract class Handler {
+  private Handler next;
+  Handler link(Handler n){ next=n; return n; }
+  final String handle(String type){
+    String r = doHandle(type);
+    if (r!=null) return r;
+    return next==null? "unhandled": next.handle(type);
+  }
+  abstract String doHandle(String type);
 }
-
-final class BillingHandler extends SupportHandler {
-    protected String doHandle(String request) {
-        return request.startsWith("bill:") ? "billing-ok" : null;
-    }
-}
-
-final class TechHandler extends SupportHandler {
-    protected String doHandle(String request) {
-        return request.startsWith("tech:") ? "tech-ok" : null;
-    }
-}
-
-final class GeneralHandler extends SupportHandler {
-    protected String doHandle(String request) { return "general-ok"; }
-}
+final class BillingHandler extends Handler { String doHandle(String t){ return "billing".equals(t)? "billing-desk": null; } }
+final class TechHandler extends Handler { String doHandle(String t){ return "tech".equals(t)? "tech-desk": null; } }
+final class GeneralHandler extends Handler { String doHandle(String t){ return "general-desk"; } }
 
 ```
 
 ### Stage 3 — Runnable main
 ```java
-package com.buildwithwaqar.patterns.gof.behavioral.chain;
+package com.buildwithwaqar.patterns.gof.behavioral.chain.problem;
 
-import com.buildwithwaqar.patterns.gof.behavioral.chain.*;
-/** Problem: route support tickets without a giant if/else in the controller. */
-public final class UseCaseDemo {
-  public static void main(String[] a) {
-    System.out.println("=== Chain problem: support ticket routing ===");
-    var root = new BillingHandler();
-    root.linkWith(new TechHandler()).linkWith(new GeneralHandler());
-    for (String t : new String[]{"bill:invoice", "tech:5xx", "hi"}) System.out.println(t + "->" + root.handle(t));
+import java.util.*;
+import java.util.concurrent.*;
+
+public final class ProblemDemo {
+  public static void main(String[] args) {
+    System.out.println("=== Chain: support ticket routing ===");
+    System.out.println("--- naive ---");
+System.out.println(NaiveRouter.route("billing"));
+System.out.println("--- chain ---");
+var h=new BillingHandler(); h.link(new TechHandler()).link(new GeneralHandler());
+System.out.println(h.handle("billing"));
+System.out.println(h.handle("tech"));
+System.out.println(h.handle("other"));
   }
 }
 
@@ -118,10 +107,13 @@ public final class UseCaseDemo {
 Narrate each line. Do not invent numbers on camera.
 
 ```text
-=== Chain problem: support ticket routing ===
-bill:invoice->billing-ok
-tech:5xx->tech-ok
-hi->general-ok
+=== Chain: support ticket routing ===
+--- naive ---
+billing-desk
+--- chain ---
+billing-desk
+tech-desk
+general-desk
 ```
 
 Trace: match each printed line to a stage above. Fork the repo, set `JAVA_HOME` to JDK 25,
@@ -203,65 +195,3 @@ Java 25 / Zazr take, then slow down for when NOT to use Chain.
 **[10:30]** *(interview + recap)*
 Two interview questions, three takeaways, link the GitHub episode folder. I am Waqar —
 see you in the next one.
-
-
-## Studio Notes for Build with Waqar
-When you record this episode, keep the energy practical. Start with the product pain, not the pattern name. Viewers stay when they feel the bug before they learn the label. In CapCut, overlay the slide number in the corner and cut idle IDE scrolling. If a code block is long, zoom CapCut to the highlighted lines rather than shrinking the font on the slide. Re-run the Demo live once if your machine allows — viewers trust a terminal more than a screenshot. Finally, end with a single actionable challenge: ask them to open the repo, run the Demo, and mutate one assertion in the test to see the failure. That turns passive watching into practice.
-
-### CapCut Checklist
-- Import `slides.pdf` or the PNG sequence at 1920×1080.
-- Align voiceover to the timestamps in the Video Script section.
-- Keep lower-thirds short: pattern name + one-line intent.
-- Add a pinned comment with the GitHub path to this episode folder.
-
-### Common Recording Mistakes
-- Reading UML without showing running output.
-- Skipping the "when NOT to use" section — that is what seniors listen for.
-- Rushing trade-offs. Slow down here; it is interview gold.
-- Forgetting to mention the test class name so learners can `mvn -Dtest=... test`.
-
-
-## Practice Drill (Do This After Watching)
-1. Clone `waqarys/java-design-patterns` and set `JAVA_HOME` to JDK 25.
-2. Run the episode Demo (`mvn -q exec:java -Dexec.mainClass=...` or `java -cp ... Demo`).
-3. Break the implementation on purpose; watch the test fail; restore it.
-4. Write one alternative design in a scratch branch and compare readability.
-5. Explain the pattern out loud in sixty seconds without looking at notes — that is your introspective for interviews.
-
-## Glossary
-- **Force:** the design pressure (extensibility, coupling, allocation, testability) that makes a pattern worth considering.
-- **Role:** a participant name from the pattern (Context, Strategy, Client, Creator, Product).
-- **Smell:** a code signal that a force is unresolved (telescoping constructors, instanceof forests, god classes).
-- **Modernization:** the Java 25 / Zazr encoding that preserves the force-resolution with less ceremony.
-
-
-## Problem Deep Dive
-The concrete problem for this episode is: **Route support tickets billing→tech→general**.
-
-Walk the naive path slowly on camera. Ask viewers what breaks first when requirements change —
-a new file to load, a new payment currency, a new saga step, a new illegal state transition.
-That question is the force. The pattern is just the name we give the force once we have felt it.
-
-Then open the solution types and show the boundary: what the rest of the app is allowed to
-depend on, and what stays hidden. Highlight how the runnable main prints a meaningful trace —
-happy path and at least one failure path — so CapCut can cut between IDE and terminal without
-inventing numbers.
-
-Finally, spend a full minute on trade-offs. Seniors stay for the "when not". Juniors need the
-happy path. Your job on Build with Waqar is both.
-
-
-## Studio Notes for Build with Waqar
-When you record this episode, keep the energy practical. Start with the product pain, not the pattern name. Viewers stay when they feel the bug before they learn the label. In CapCut, overlay the slide number in the corner and cut idle IDE scrolling. If a code block is long, zoom CapCut to the highlighted lines rather than shrinking the font on the slide. Re-run the Demo live once if your machine allows — viewers trust a terminal more than a screenshot. Finally, end with a single actionable challenge: ask them to open the repo, run the Demo, and mutate one assertion in the test to see the failure. That turns passive watching into practice.
-
-### CapCut Checklist
-- Import `slides.pdf` or the PNG sequence at 1920×1080.
-- Align voiceover to the timestamps in the Video Script section.
-- Keep lower-thirds short: pattern name + one-line intent.
-- Add a pinned comment with the GitHub path to this episode folder.
-
-### Common Recording Mistakes
-- Reading UML without showing running output.
-- Skipping the "when NOT to use" section — that is what seniors listen for.
-- Rushing trade-offs. Slow down here; it is interview gold.
-- Forgetting to mention the test class name so learners can `mvn -Dtest=... test`.

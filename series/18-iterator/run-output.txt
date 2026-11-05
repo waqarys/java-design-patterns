@@ -1,6 +1,5 @@
-=== Iterator problem: round-robin workers ===
-job0->w1
-job1->w2
-job2->w3
-job3->w1
-job4->w2
+=== Iterator: round-robin workers ===
+--- naive ---
+w1 w2 w1
+--- iterator ---
+w1 w2 w1

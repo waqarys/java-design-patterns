@@ -1,3 +1,6 @@
-=== Visitor problem: shape areas ===
-pm=12.566370614359172
-visitor=12.566370614359172
+=== Visitor: AST pretty-print / eval ===
+--- naive ---
+(2+3)
+--- visitor ---
+((2+3)*4)
+value=20

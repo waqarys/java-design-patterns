@@ -1,4 +1,7 @@
-=== Chain problem: support ticket routing ===
-bill:invoice->billing-ok
-tech:5xx->tech-ok
-hi->general-ok
+=== Chain: support ticket routing ===
+--- naive ---
+billing-desk
+--- chain ---
+billing-desk
+tech-desk
+general-desk

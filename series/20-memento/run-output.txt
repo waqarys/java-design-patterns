@@ -1,3 +1,6 @@
-=== Memento problem: editor checkpoints ===
-now=v1-v2
-restored=v1
+=== Memento: editor snapshots ===
+--- naive ---
+a
+--- memento ---
+Hello!
+restored=Hello

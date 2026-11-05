@@ -1,6 +1,6 @@
 # Iterator
 
-**Season:** 3 · Behavioral · **Category:** GoF · **Level:** Intermediate · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar
+**Season:** 3 · Behavioral · **Category:** GoF · **Level:** Intermediate · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar
 
 ## Problem
 **Round-robin assign jobs to workers**
@@ -24,17 +24,14 @@ failure, or couple call sites to a third-party shape. That feels fast on day one
 on day thirty.
 
 ```java
-package com.buildwithwaqar.patterns.gof.behavioral.iterator;
+package com.buildwithwaqar.patterns.gof.behavioral.iterator.problem;
 
-import com.buildwithwaqar.patterns.gof.behavioral.iterator.RoundRobin;
-import java.util.List;
-/** Problem: distribute jobs fairly across workers forever. */
-public final class UseCaseDemo {
-  public static void main(String[] a) {
-    System.out.println("=== Iterator problem: round-robin workers ===");
-    var it = new RoundRobin<>(List.of("w1","w2","w3")).iterator();
-    for (int i=0;i<5;i++) System.out.println("job"+i+"->" + it.next());
-  }
+import java.util.*;
+
+public final class NaiveAssign {
+  private int i; private final List<String> w;
+  public NaiveAssign(List<String> w){ this.w=w; }
+  public String next(){ return w.get(i++ % w.size()); }
 }
 
 ```
@@ -60,50 +57,39 @@ or distributed details behind it.
 
 ### Stage 2 — Encode the solution
 ```java
-package com.buildwithwaqar.patterns.gof.behavioral.iterator;
+package com.buildwithwaqar.patterns.gof.behavioral.iterator.problem;
 
-import java.util.Iterator;
-import java.util.List;
-import java.util.NoSuchElementException;
+import java.util.*;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.*;
+import java.util.function.*;
 
-/** Custom iterator that cycles through a non-empty list. */
-public final class RoundRobin<T> implements Iterable<T> {
-    private final List<T> items;
-
-    public RoundRobin(List<T> items) {
-        if (items.isEmpty()) throw new IllegalArgumentException("empty");
-        this.items = List.copyOf(items);
-    }
-
-    @Override
-    public Iterator<T> iterator() {
-        return new Iterator<>() {
-            int i = 0;
-            public boolean hasNext() { return true; }
-            public T next() {
-                if (items.isEmpty()) throw new NoSuchElementException();
-                var v = items.get(i % items.size());
-                i++;
-                return v;
-            }
-        };
-    }
+final class RoundRobin implements Iterable<String> {
+  private final List<String> workers; private int i;
+  RoundRobin(List<String> workers){ this.workers=List.copyOf(workers); }
+  public Iterator<String> iterator(){
+    return new Iterator<>(){
+      public boolean hasNext(){ return !workers.isEmpty(); }
+      public String next(){ if(workers.isEmpty()) throw new NoSuchElementException();
+        String w=workers.get(i % workers.size()); i++; return w; }
+    };
+  }
 }
 
 ```
 
 ### Stage 3 — Runnable main
 ```java
-package com.buildwithwaqar.patterns.gof.behavioral.iterator;
-
-import com.buildwithwaqar.patterns.gof.behavioral.iterator.RoundRobin;
-import java.util.List;
-/** Problem: distribute jobs fairly across workers forever. */
-public final class UseCaseDemo {
-  public static void main(String[] a) {
-    System.out.println("=== Iterator problem: round-robin workers ===");
-    var it = new RoundRobin<>(List.of("w1","w2","w3")).iterator();
-    for (int i=0;i<5;i++) System.out.println("job"+i+"->" + it.next());
+package com.buildwithwaqar.patterns.gof.behavioral.iterator.problem;
+import java.util.*; import java.util.concurrent.*;
+public final class ProblemDemo {
+  public static void main(String[] args) throws Exception {
+    System.out.println("=== Iterator: round-robin workers ===");
+    System.out.println("--- naive ---");
+var n=new NaiveAssign(List.of("w1","w2")); System.out.println(n.next()+" "+n.next()+" "+n.next());
+System.out.println("--- iterator ---");
+var it=new RoundRobin(List.of("w1","w2")).iterator();
+System.out.println(it.next()+" "+it.next()+" "+it.next());
   }
 }
 
@@ -113,12 +99,11 @@ public final class UseCaseDemo {
 Narrate each line. Do not invent numbers on camera.
 
 ```text
-=== Iterator problem: round-robin workers ===
-job0->w1
-job1->w2
-job2->w3
-job3->w1
-job4->w2
+=== Iterator: round-robin workers ===
+--- naive ---
+w1 w2 w1
+--- iterator ---
+w1 w2 w1
 ```
 
 Trace: match each printed line to a stage above. Fork the repo, set `JAVA_HOME` to JDK 25,
@@ -200,79 +185,3 @@ Java 25 / Zazr take, then slow down for when NOT to use Iterator.
 **[10:30]** *(interview + recap)*
 Two interview questions, three takeaways, link the GitHub episode folder. I am Waqar —
 see you in the next one.
-
-
-## Studio Notes for Build with Waqar
-When you record this episode, keep the energy practical. Start with the product pain, not the pattern name. Viewers stay when they feel the bug before they learn the label. In CapCut, overlay the slide number in the corner and cut idle IDE scrolling. If a code block is long, zoom CapCut to the highlighted lines rather than shrinking the font on the slide. Re-run the Demo live once if your machine allows — viewers trust a terminal more than a screenshot. Finally, end with a single actionable challenge: ask them to open the repo, run the Demo, and mutate one assertion in the test to see the failure. That turns passive watching into practice.
-
-### CapCut Checklist
-- Import `slides.pdf` or the PNG sequence at 1920×1080.
-- Align voiceover to the timestamps in the Video Script section.
-- Keep lower-thirds short: pattern name + one-line intent.
-- Add a pinned comment with the GitHub path to this episode folder.
-
-### Common Recording Mistakes
-- Reading UML without showing running output.
-- Skipping the "when NOT to use" section — that is what seniors listen for.
-- Rushing trade-offs. Slow down here; it is interview gold.
-- Forgetting to mention the test class name so learners can `mvn -Dtest=... test`.
-
-
-## Practice Drill (Do This After Watching)
-1. Clone `waqarys/java-design-patterns` and set `JAVA_HOME` to JDK 25.
-2. Run the episode Demo (`mvn -q exec:java -Dexec.mainClass=...` or `java -cp ... Demo`).
-3. Break the implementation on purpose; watch the test fail; restore it.
-4. Write one alternative design in a scratch branch and compare readability.
-5. Explain the pattern out loud in sixty seconds without looking at notes — that is your introspective for interviews.
-
-## Glossary
-- **Force:** the design pressure (extensibility, coupling, allocation, testability) that makes a pattern worth considering.
-- **Role:** a participant name from the pattern (Context, Strategy, Client, Creator, Product).
-- **Smell:** a code signal that a force is unresolved (telescoping constructors, instanceof forests, god classes).
-- **Modernization:** the Java 25 / Zazr encoding that preserves the force-resolution with less ceremony.
-
-
-## Problem Deep Dive
-The concrete problem for this episode is: **Round-robin assign jobs to workers**.
-
-Walk the naive path slowly on camera. Ask viewers what breaks first when requirements change —
-a new file to load, a new payment currency, a new saga step, a new illegal state transition.
-That question is the force. The pattern is just the name we give the force once we have felt it.
-
-Then open the solution types and show the boundary: what the rest of the app is allowed to
-depend on, and what stays hidden. Highlight how the runnable main prints a meaningful trace —
-happy path and at least one failure path — so CapCut can cut between IDE and terminal without
-inventing numbers.
-
-Finally, spend a full minute on trade-offs. Seniors stay for the "when not". Juniors need the
-happy path. Your job on Build with Waqar is both.
-
-
-## Studio Notes for Build with Waqar
-When you record this episode, keep the energy practical. Start with the product pain, not the pattern name. Viewers stay when they feel the bug before they learn the label. In CapCut, overlay the slide number in the corner and cut idle IDE scrolling. If a code block is long, zoom CapCut to the highlighted lines rather than shrinking the font on the slide. Re-run the Demo live once if your machine allows — viewers trust a terminal more than a screenshot. Finally, end with a single actionable challenge: ask them to open the repo, run the Demo, and mutate one assertion in the test to see the failure. That turns passive watching into practice.
-
-### CapCut Checklist
-- Import `slides.pdf` or the PNG sequence at 1920×1080.
-- Align voiceover to the timestamps in the Video Script section.
-- Keep lower-thirds short: pattern name + one-line intent.
-- Add a pinned comment with the GitHub path to this episode folder.
-
-### Common Recording Mistakes
-- Reading UML without showing running output.
-- Skipping the "when NOT to use" section — that is what seniors listen for.
-- Rushing trade-offs. Slow down here; it is interview gold.
-- Forgetting to mention the test class name so learners can `mvn -Dtest=... test`.
-
-
-## Practice Drill (Do This After Watching)
-1. Clone `waqarys/java-design-patterns` and set `JAVA_HOME` to JDK 25.
-2. Run the episode Demo (`mvn -q exec:java -Dexec.mainClass=...` or `java -cp ... Demo`).
-3. Break the implementation on purpose; watch the test fail; restore it.
-4. Write one alternative design in a scratch branch and compare readability.
-5. Explain the pattern out loud in sixty seconds without looking at notes — that is your introspective for interviews.
-
-## Glossary
-- **Force:** the design pressure (extensibility, coupling, allocation, testability) that makes a pattern worth considering.
-- **Role:** a participant name from the pattern (Context, Strategy, Client, Creator, Product).
-- **Smell:** a code signal that a force is unresolved (telescoping constructors, instanceof forests, god classes).
-- **Modernization:** the Java 25 / Zazr encoding that preserves the force-resolution with less ceremony.

@@ -1,3 +1,7 @@
-=== Strategy problem: cart pricing ===
-10off=900
-flat=850
+=== Strategy: cart pricing ===
+--- naive ---
+900
+--- strategy ---
+900
+800
+500

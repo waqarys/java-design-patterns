@@ -1,2 +1,6 @@
-=== Template Method problem: CSV mining ===
+=== Template Method: CSV/JSON mine ===
+--- naive ---
 rows=2
+--- template ---
+rows=2
+rows=1

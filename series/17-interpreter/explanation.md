@@ -1,9 +1,9 @@
 # Interpreter
 
-**Season:** 3 · Behavioral · **Category:** GoF · **Level:** Intermediate · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar
+**Season:** 3 · Behavioral · **Category:** GoF · **Level:** Intermediate · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar
 
 ## Problem
-**Evaluate arithmetic AST (2+3)*4**
+**Pricing-rule DSL: base + percent + flat discounts**
 
 This episode is built around that concrete problem — not a shared StreamForge framing.
 You will see a real naive implementation that hurts, a full pattern-based solution, a
@@ -11,11 +11,11 @@ runnable main with meaningful stdout, and JUnit failure-path coverage where the 
 
 ## Hook
 Welcome back to **Build with Waqar**. Today we earn **Interpreter** by solving one problem well:
-*Evaluate arithmetic AST (2+3)*4*. By the end you will have walked naive pain → pattern refactor → real JDK 25
+*Pricing-rule DSL: base + percent + flat discounts*. By the end you will have walked naive pain → pattern refactor → real JDK 25
 stdout → trade-offs, with CapCut slides and a spoken script.
 
 ## Intent
-Interpreter exists because this force kept showing up: evaluate arithmetic ast (2+3)*4. Name the force, sketch
+Interpreter exists because this force kept showing up: pricing-rule dsl: base + percent + flat discounts. Name the force, sketch
 the roles, and — critically — know when you would refuse the pattern.
 
 ## The Pain — Naive Design
@@ -24,17 +24,19 @@ failure, or couple call sites to a third-party shape. That feels fast on day one
 on day thirty.
 
 ```java
-package com.buildwithwaqar.patterns.gof.behavioral.interpreter;
+package com.buildwithwaqar.patterns.gof.behavioral.interpreter.problem;
 
-import com.buildwithwaqar.patterns.gof.behavioral.interpreter.*;
 import java.util.Map;
-/** Problem: evaluate a formula AST from a rules engine. */
-public final class UseCaseDemo {
-  public static void main(String[] a) {
-    System.out.println("=== Interpreter problem: evaluate (2+3)*4 ===");
-    Expression e = new MulExpr(new AddExpr(new NumberExpr(2), new NumberExpr(3)), new NumberExpr(4));
-    System.out.println("value=" + e.evaluate(Map.of()));
-  }
+
+/** Naive: stringly if/else discount codes — untestable composition. */
+public final class NaivePricing {
+    public static int price(String code, Map<String, Integer> prices) {
+        int base = prices.getOrDefault("SKU", 0);
+        if ("PCT10".equals(code)) return base * 90 / 100;
+        if ("FLAT200".equals(code)) return Math.max(0, base - 200);
+        if ("STACK".equals(code)) return Math.max(0, base * 90 / 100 - 200);
+        throw new IllegalArgumentException("unknown " + code);
+    }
 }
 
 ```
@@ -60,27 +62,36 @@ or distributed details behind it.
 
 ### Stage 2 — Encode the solution
 ```java
-package com.buildwithwaqar.patterns.gof.behavioral.interpreter;
+package com.buildwithwaqar.patterns.gof.behavioral.interpreter.problem;
 
 import java.util.Map;
 
-public sealed interface Expression permits NumberExpr, AddExpr, MulExpr {
-    int evaluate(Map<String, Integer> ctx);
-}
-
-record NumberExpr(int value) implements Expression {
-    public int evaluate(Map<String, Integer> ctx) { return value; }
-}
-
-record AddExpr(Expression left, Expression right) implements Expression {
-    public int evaluate(Map<String, Integer> ctx) {
-        return left.evaluate(ctx) + right.evaluate(ctx);
+/** Pricing-rule DSL: Base / PercentOff / FlatOff / Stack as an Expression AST. */
+public final class PricingDsl {
+    private PricingDsl() {}
+    public sealed interface Rule permits Base, PercentOff, FlatOff, Stack {
+        int apply(Map<String, Integer> ctx);
     }
-}
-
-record MulExpr(Expression left, Expression right) implements Expression {
-    public int evaluate(Map<String, Integer> ctx) {
-        return left.evaluate(ctx) * right.evaluate(ctx);
+    public record Base(String skuKey) implements Rule {
+        public int apply(Map<String, Integer> ctx) {
+            Integer v = ctx.get(skuKey);
+            if (v == null) throw new IllegalArgumentException("unknown sku " + skuKey);
+            return v;
+        }
+    }
+    public record PercentOff(Rule inner, int percent) implements Rule {
+        public int apply(Map<String, Integer> ctx) {
+            if (percent < 0 || percent > 100) throw new IllegalArgumentException("bad percent");
+            return inner.apply(ctx) * (100 - percent) / 100;
+        }
+    }
+    public record FlatOff(Rule inner, int cents) implements Rule {
+        public int apply(Map<String, Integer> ctx) {
+            return Math.max(0, inner.apply(ctx) - cents);
+        }
+    }
+    public record Stack(Rule left, Rule right) implements Rule {
+        public int apply(Map<String, Integer> ctx) { return left.apply(ctx) + right.apply(ctx); }
     }
 }
 
@@ -88,17 +99,28 @@ record MulExpr(Expression left, Expression right) implements Expression {
 
 ### Stage 3 — Runnable main
 ```java
-package com.buildwithwaqar.patterns.gof.behavioral.interpreter;
+package com.buildwithwaqar.patterns.gof.behavioral.interpreter.problem;
 
-import com.buildwithwaqar.patterns.gof.behavioral.interpreter.*;
 import java.util.Map;
-/** Problem: evaluate a formula AST from a rules engine. */
-public final class UseCaseDemo {
-  public static void main(String[] a) {
-    System.out.println("=== Interpreter problem: evaluate (2+3)*4 ===");
-    Expression e = new MulExpr(new AddExpr(new NumberExpr(2), new NumberExpr(3)), new NumberExpr(4));
-    System.out.println("value=" + e.evaluate(Map.of()));
-  }
+
+public final class ProblemDemo {
+    public static void main(String[] args) {
+        System.out.println("=== Interpreter: pricing-rule DSL ===");
+        var ctx = Map.of("SKU", 2000, "ADDON", 500);
+        System.out.println("--- naive ---");
+        System.out.println(NaivePricing.price("STACK", ctx));
+        System.out.println("--- DSL AST ---");
+        PricingDsl.Rule rule = new PricingDsl.FlatOff(
+                new PricingDsl.PercentOff(new PricingDsl.Base("SKU"), 10), 200);
+        System.out.println("price=" + rule.apply(ctx));
+        PricingDsl.Rule stack = new PricingDsl.Stack(rule, new PricingDsl.Base("ADDON"));
+        System.out.println("cart=" + stack.apply(ctx));
+        try {
+            new PricingDsl.Base("NOPE").apply(ctx);
+        } catch (IllegalArgumentException e) {
+            System.out.println("caught=" + e.getMessage());
+        }
+    }
 }
 
 ```
@@ -107,8 +129,13 @@ public final class UseCaseDemo {
 Narrate each line. Do not invent numbers on camera.
 
 ```text
-=== Interpreter problem: evaluate (2+3)*4 ===
-value=20
+=== Interpreter: pricing-rule DSL ===
+--- naive ---
+1600
+--- DSL AST ---
+price=1600
+cart=2100
+caught=unknown sku NOPE
 ```
 
 Trace: match each printed line to a stage above. Fork the repo, set `JAVA_HOME` to JDK 25,
@@ -140,7 +167,7 @@ State vs Strategy, Free vs Tagless). Say the distinguishing sentence out loud.
 
 ## Interview Q&A
 **Q1. What concrete problem does Interpreter solve here?**
-A: Evaluate arithmetic AST (2+3)*4.
+A: Pricing-rule DSL: base + percent + flat discounts.
 
 **Q2. What does the naive design get wrong?**
 A: Point at the naive code smells from this episode.
@@ -156,7 +183,7 @@ A: Give a smaller counterexample where a function, Option, or facade is enough.
 A: Records, sealed types, virtual threads, Zazr control types — pick what applies.
 
 ## Key Takeaways
-- Lead with the problem: Evaluate arithmetic AST (2+3)*4.
+- Lead with the problem: Pricing-rule DSL: base + percent + flat discounts.
 - Show naive pain before naming Interpreter.
 - Run the Demo; trust JDK 25 stdout.
 - Teach when NOT to use it.
@@ -166,7 +193,7 @@ Record for **Build with Waqar**. OBS for capture, CapCut for assembly. Import `s
 
 **[0:00]** *(slide 01 title)*
 Hey everyone, welcome back to Build with Waqar. Today we solve a real problem with Interpreter:
-Evaluate arithmetic AST (2+3)*4.
+Pricing-rule DSL: base + percent + flat discounts.
 
 **[0:40]** *(slide 02–03 problem)*
 I am not starting with a definition. Here is the product pain. Keep these names — they
@@ -190,79 +217,3 @@ Java 25 / Zazr take, then slow down for when NOT to use Interpreter.
 **[10:30]** *(interview + recap)*
 Two interview questions, three takeaways, link the GitHub episode folder. I am Waqar —
 see you in the next one.
-
-
-## Studio Notes for Build with Waqar
-When you record this episode, keep the energy practical. Start with the product pain, not the pattern name. Viewers stay when they feel the bug before they learn the label. In CapCut, overlay the slide number in the corner and cut idle IDE scrolling. If a code block is long, zoom CapCut to the highlighted lines rather than shrinking the font on the slide. Re-run the Demo live once if your machine allows — viewers trust a terminal more than a screenshot. Finally, end with a single actionable challenge: ask them to open the repo, run the Demo, and mutate one assertion in the test to see the failure. That turns passive watching into practice.
-
-### CapCut Checklist
-- Import `slides.pdf` or the PNG sequence at 1920×1080.
-- Align voiceover to the timestamps in the Video Script section.
-- Keep lower-thirds short: pattern name + one-line intent.
-- Add a pinned comment with the GitHub path to this episode folder.
-
-### Common Recording Mistakes
-- Reading UML without showing running output.
-- Skipping the "when NOT to use" section — that is what seniors listen for.
-- Rushing trade-offs. Slow down here; it is interview gold.
-- Forgetting to mention the test class name so learners can `mvn -Dtest=... test`.
-
-
-## Practice Drill (Do This After Watching)
-1. Clone `waqarys/java-design-patterns` and set `JAVA_HOME` to JDK 25.
-2. Run the episode Demo (`mvn -q exec:java -Dexec.mainClass=...` or `java -cp ... Demo`).
-3. Break the implementation on purpose; watch the test fail; restore it.
-4. Write one alternative design in a scratch branch and compare readability.
-5. Explain the pattern out loud in sixty seconds without looking at notes — that is your introspective for interviews.
-
-## Glossary
-- **Force:** the design pressure (extensibility, coupling, allocation, testability) that makes a pattern worth considering.
-- **Role:** a participant name from the pattern (Context, Strategy, Client, Creator, Product).
-- **Smell:** a code signal that a force is unresolved (telescoping constructors, instanceof forests, god classes).
-- **Modernization:** the Java 25 / Zazr encoding that preserves the force-resolution with less ceremony.
-
-
-## Problem Deep Dive
-The concrete problem for this episode is: **Evaluate arithmetic AST (2+3)*4**.
-
-Walk the naive path slowly on camera. Ask viewers what breaks first when requirements change —
-a new file to load, a new payment currency, a new saga step, a new illegal state transition.
-That question is the force. The pattern is just the name we give the force once we have felt it.
-
-Then open the solution types and show the boundary: what the rest of the app is allowed to
-depend on, and what stays hidden. Highlight how the runnable main prints a meaningful trace —
-happy path and at least one failure path — so CapCut can cut between IDE and terminal without
-inventing numbers.
-
-Finally, spend a full minute on trade-offs. Seniors stay for the "when not". Juniors need the
-happy path. Your job on Build with Waqar is both.
-
-
-## Studio Notes for Build with Waqar
-When you record this episode, keep the energy practical. Start with the product pain, not the pattern name. Viewers stay when they feel the bug before they learn the label. In CapCut, overlay the slide number in the corner and cut idle IDE scrolling. If a code block is long, zoom CapCut to the highlighted lines rather than shrinking the font on the slide. Re-run the Demo live once if your machine allows — viewers trust a terminal more than a screenshot. Finally, end with a single actionable challenge: ask them to open the repo, run the Demo, and mutate one assertion in the test to see the failure. That turns passive watching into practice.
-
-### CapCut Checklist
-- Import `slides.pdf` or the PNG sequence at 1920×1080.
-- Align voiceover to the timestamps in the Video Script section.
-- Keep lower-thirds short: pattern name + one-line intent.
-- Add a pinned comment with the GitHub path to this episode folder.
-
-### Common Recording Mistakes
-- Reading UML without showing running output.
-- Skipping the "when NOT to use" section — that is what seniors listen for.
-- Rushing trade-offs. Slow down here; it is interview gold.
-- Forgetting to mention the test class name so learners can `mvn -Dtest=... test`.
-
-
-## Practice Drill (Do This After Watching)
-1. Clone `waqarys/java-design-patterns` and set `JAVA_HOME` to JDK 25.
-2. Run the episode Demo (`mvn -q exec:java -Dexec.mainClass=...` or `java -cp ... Demo`).
-3. Break the implementation on purpose; watch the test fail; restore it.
-4. Write one alternative design in a scratch branch and compare readability.
-5. Explain the pattern out loud in sixty seconds without looking at notes — that is your introspective for interviews.
-
-## Glossary
-- **Force:** the design pressure (extensibility, coupling, allocation, testability) that makes a pattern worth considering.
-- **Role:** a participant name from the pattern (Context, Strategy, Client, Creator, Product).
-- **Smell:** a code signal that a force is unresolved (telescoping constructors, instanceof forests, god classes).
-- **Modernization:** the Java 25 / Zazr encoding that preserves the force-resolution with less ceremony.

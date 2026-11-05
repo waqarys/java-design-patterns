@@ -1,5 +1,6 @@
-=== State problem: order lifecycle ===
-NEW
-paid=PAID
-shipped=SHIPPED
-illegalCancel=caught
+=== State: order lifecycle ===
+--- naive (illegal ship) ---
+SHIPPED
+--- state ---
+SHIPPED
+caught=ship from NEW
