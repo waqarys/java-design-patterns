@@ -197,6 +197,248 @@ def diagram_for(slug: str, problem: str):
         return [("Client", words[0]), (words[0], words[1]), (words[1], "Result")]
     return [("Client", "Pattern"), ("Pattern", "Solution")]
 
+
+def _naive_pain_line(naive: str, problem: str) -> str:
+    """Pull the first javadoc / comment that explains naive pain."""
+    m = re.search(r"/\*\*([^*]|\*(?!/))+?\*/", naive, re.S)
+    if m:
+        doc = re.sub(r"^\s*\*\s?", "", m.group(0).strip("/* "), flags=re.M)
+        doc = " ".join(doc.split())
+        if len(doc) > 20:
+            return doc[:160]
+    # first non-empty non-package line
+    for line in naive.splitlines():
+        s = line.strip()
+        if s.startswith("//") and len(s) > 8:
+            return s.lstrip("/ ").strip()[:160]
+    return f"Naive version fails to cleanly solve: {problem}"
+
+
+def _success_from_run(run: str) -> str:
+    lines = [ln.strip() for ln in run.splitlines() if ln.strip() and not ln.startswith("===") and not ln.startswith("---")]
+    # prefer a committed/OK/true/booked=true style line
+    for ln in lines:
+        low = ln.lower()
+        if any(k in low for k in ("committed", "ok:", "booked=true", "welcome", "json=", "ways=", "user=", "201:", "bal=")):
+            return ln[:120]
+    return (lines[0] if lines else "Demo prints a meaningful happy-path trace")[:120]
+
+
+def _failure_from_run(run: str) -> str:
+    lines = [ln.strip() for ln in run.splitlines() if ln.strip()]
+    for ln in lines:
+        low = ln.lower()
+        if any(k in low for k in ("caught=", "fail", "abort", "409:", "404:", "rolled_back", "none", "empty", "leak", "missing", "insufficient", "circuit open")):
+            return ln[:120]
+    return "Failure path is asserted in ProblemTest (injected fault / invalid input)"
+
+
+def _inputs_constraint(problem: str, pattern: str) -> str:
+    # Derive a concrete constraint line from the problem statement
+    return f"Constraints: solve «{problem}» with {pattern} — keep the demo runnable and the failure path observable."
+
+
+def specific_slide_meta(slug: str, pattern: str, problem: str, naive: str, solution: str, demo_src: str, run: str) -> dict:
+    """Build problem-specific slide bullets — no shared filler across episodes."""
+    pain = _naive_pain_line(naive, problem)
+    success = _success_from_run(run)
+    failure = _failure_from_run(run)
+    # Extract a couple of type/role names from solution for scenario
+    roles = re.findall(r"(?:class|interface|record|enum)\s+(\w+)", solution + "\n" + demo_src)
+    roles = [r for r in roles if r not in ("ProblemDemo", "NaiveImpl", "SolutionKit") and not r.startswith("Naive")][:4]
+    role_line = ("Key types: " + ", ".join(roles)) if roles else f"Key boundary: {pattern} entry point + collaborators"
+
+    # Pattern-specific success criteria overrides for well-known upgrades
+    overrides = {
+        "59-tagless-final": dict(
+            problem_bullets=[
+                "Register a user: persist User(id,email), send welcome email, log steps.",
+                "Program is written once against UserRepo[F], EmailSender[F], Logger[F].",
+                "Naive hard-wires Map + System.out — cannot assert emails without capturing stdout.",
+                "Success: same register() under IoUserRepo and TestState; duplicate email skips second welcome.",
+            ],
+            pain_bullets=[
+                "NaiveRegistration news a Map and prints email — untestable without a mock framework.",
+                "Duplicate email path still couples to System.out.",
+                "Swapping 'prod' for 'test' means rewriting the service.",
+                "Effect choice (IO vs pure state) is baked into call sites.",
+            ],
+            scenario_bullets=[
+                "Inputs: id + email address; Env is the effect dictionary F.",
+                "Happy path: save user, send Welcome, append log lines.",
+                "Failure/edge: duplicate email → log 'duplicate', no second send.",
+                "Test cake: TestState.emails / .logs / .users inspected after runWith(state).",
+            ],
+        ),
+        "60-cake-pattern": dict(
+            problem_bullets=[
+                "HTTP-ish controller → service → repo for user register/welcome.",
+                "LiveCake wires real Map DB + mailbox; TestCake seeds fakes.",
+                "Naive controller news everything — cannot swap email gateway.",
+                "Success: 201 on register, 200 welcome, 409 duplicate, 404 missing — mail recorded.",
+            ],
+            pain_bullets=[
+                "NaiveApp.postRegister hard-wires System.out email.",
+                "No seam to inject a fake mailbox in unit tests.",
+                "Controller, service, and repo responsibilities collapse into one class.",
+                "Duplicate handling returns a stringly '409' without shared types.",
+            ],
+        ),
+        "33-saga": dict(
+            problem_bullets=[
+                "Book an order: reserve inventory → charge payment → create shipment.",
+                "Naive sequential calls leak reservations when payment fails.",
+                "Orchestration saga registers compensations; reverse on abort.",
+                "Choreography twin: EventBus InventoryReserved → PaymentCharged → ShipmentCreated.",
+            ],
+            pain_bullets=[
+                "NaiveOrderFlow leaves inventory reserved after card decline.",
+                "No compensation registry — money/stock drift on mid-flow failure.",
+                "Cannot inject 'fail at ship' without rewriting the flow.",
+                "No idempotency key — retries double-charge in production.",
+            ],
+            scenario_bullets=[
+                "Inputs: orderId, sku, qty, cents, address.",
+                "Success: log contains committed; partners.shipped contains orderId.",
+                "Failure: ship/charge fails → compensate refund then release (reverse).",
+                "Choreography: StepFailed event triggers InventoryReleased on the bus.",
+            ],
+        ),
+        "65-vavr-vs-zazr": dict(
+            problem_bullets=[
+                "Describe an optional String with the same map/getOrElse program.",
+                "Left: real io.vavr.control.Option; right: real dev.zazr.control.Option.",
+                "Naive uses null and returns 'none'/'some:' — ambiguous at call sites.",
+                "Success: vavr-some:x mirrors zazr-some:x; both pipelines agree on blank→none.",
+            ],
+            pain_bullets=[
+                "Null String forces every caller to remember the sentinel convention.",
+                "Stand-in 'vavrStyleDescribe' lied — tests did not exercise VAVR.",
+                "API differences (VAVR Option.of vs Zazr some/none/switch) need a live demo.",
+                "Without both jars in the demo, migration advice is unverifiable.",
+            ],
+        ),
+        "58-free-monad": dict(
+            problem_bullets=[
+                "Bank DSL: Balance / Withdraw / Deposit / Transfer as Free instructions.",
+                "Map interpreter mutates an in-memory ledger; logging interpreter records instr.",
+                "Optimizer rewrites Transfer → Withdraw then Deposit.",
+                "Success: paydayBonus moves funds; insufficient funds throws; optLog has 2 steps.",
+            ],
+        ),
+        "51-memoization": dict(
+            problem_bullets=[
+                "Coin-change ways(amount, coins) — exponential naive vs memoized DP.",
+                "Also memoize expensive tax-rate lookup by region.",
+                "Trace: call counts + elapsed ms printed by ProblemDemo.",
+                "Success: memo ways == naive ways with far fewer calls; tax computeCalls=2 for CA+NY.",
+            ],
+        ),
+        "52-smart-constructors": dict(
+            problem_bullets=[
+                "Value objects: Money(currency,cents), Email, IBAN — invalid values must not exist.",
+                "Naive public records accept US/-5 and 'not-an-email'.",
+                "Smart constructors return Optional.empty() on bad input; normalize case.",
+                "Success: Money.of('USD',1999) present; Money.of('US',-1) empty; Email lowercased.",
+            ],
+        ),
+        "47-functor-applicative-monad": dict(
+            problem_bullets=[
+                "Build Dashboard(name, totalCents) from async User + Order fetches.",
+                "Optional.map2 and CompletableFuture.thenCombine as applicative zip.",
+                "Naive null-combine returns null — NPE risk at the edge.",
+                "Success: join() yields User-1/4200; missing order → CompletionException.",
+            ],
+        ),
+        "64-effect-interpreters": dict(
+            problem_bullets=[
+                "Program: read file → HTTP service → write result (AST of Eff).",
+                "ProdInterpreter uses mutable FS + http function; TestInterpreter scripts responses.",
+                "Naive pipeline hard-wires 'OK:'+content — cannot fail HTTP in tests.",
+                "Success: /out gets SHIPPED:order-42; failHttp throws http-down.",
+            ],
+        ),
+        "08-adapter": dict(
+            problem_bullets=[
+                "Checkout must call PaymentProcessor.charge(customer, cents, currency).",
+                "LegacySoapGateway only accepts XML envelopes and returns <Txn>/<Fault>.",
+                "NaiveCheckout builds XML and scrapes ack in every controller.",
+                "Success: OK:SOAP-… for USD; FAILED for non-positive; INR rejected.",
+            ],
+        ),
+        "54-reader": dict(
+            problem_bullets=[
+                "Load config.yaml + secrets.env + feature-flags.json into ConfigBundle.",
+                "Env holds baseDir, charset, FileSystem, logger — asked once via Reader.",
+                "Naive drills fs/charset/baseDir into every helper (easy to mismatch).",
+                "Success: bundle.require('app'|'TOKEN'|'beta'); env.log has 3 read lines.",
+            ],
+        ),
+        "17-interpreter": dict(
+            problem_bullets=[
+                "Pricing-rule DSL: Base(sku) → PercentOff → FlatOff → Stack.",
+                "Context map supplies SKU prices; unknown sku / bad percent must fail.",
+                "Naive stringly codes (PCT10/FLAT200) cannot compose safely.",
+                "Success: 10% then $2 off of 2000 → 1600; Stack adds ADDON.",
+            ],
+        ),
+    }
+
+    base = dict(
+        hook_bullets=[
+            f"Today's force: {problem}",
+            f"We earn {pattern} by feeling the naive pain first.",
+            f"Demo main prints a real JDK 25 trace (happy + failure).",
+            role_line,
+        ],
+        problem_bullets=[
+            f"Scenario: {problem}",
+            _inputs_constraint(problem, pattern),
+            f"Naive pain: {pain}",
+            f"Success looks like: {success}",
+        ],
+        scenario_bullets=[
+            f"Running example: {problem}",
+            role_line,
+            f"Happy-path stdout cue: {success}",
+            f"Failure-path stdout cue: {failure}",
+        ],
+        pain_bullets=[
+            pain,
+            f"Without {pattern}, call sites absorb the wrong details.",
+            f"Failure mode to show on camera: {failure}",
+            "New requirements force shotgun edits across the naive code.",
+        ],
+        trace_bullets=[
+            f"Match stdout to stages — look for: {success}",
+            f"Then the injected failure: {failure}",
+            f"Re-run: java -cp … {slug} ProblemDemo (see episode folder).",
+            "Pause the video and predict the next printed line.",
+        ],
+        tradeoff_bullets=[
+            f"Use {pattern} when «{problem}» repeats and a simpler feature does not erase it.",
+            "Refuse extra types when a sealed switch or a function value already suffices.",
+            "Teaching demos omit production metrics, retries, and multi-region clocks.",
+            f"Interview soundbite: state the force behind {pattern} in product language.",
+        ],
+        related_bullets=[
+            f"Name the pattern usually confused with {pattern} and separate the forces.",
+            f"Sketch the roles for «{problem}» from memory in sixty seconds.",
+            "Point to the next episode in this season on the playlist map.",
+            "Link this episode's series/ folder in the YouTube description.",
+        ],
+        recap_bullets=[
+            f"Problem: {problem}",
+            f"Naive pain → {pattern} boundary → Demo stdout.",
+            f"Remember the failure cue: {failure}",
+            "Break a ProblemTest assertion, watch it fail, restore it.",
+        ],
+    )
+    if slug in overrides:
+        base.update(overrides[slug])
+    return base
+
+
 def deep_problem_md(ep_dir: Path, pattern: str, problem: str) -> tuple[str, dict]:
     slug = ep_dir.name
     old = (ep_dir / "explanation.md").read_text() if (ep_dir / "explanation.md").exists() else f"# {pattern}\n"
@@ -390,68 +632,33 @@ Two interview questions, three takeaways, link the GitHub episode folder. I am W
 see you in the next one.
 """
     md = md  # substance from problem sources; no padding
-    bullets = lambda *xs: list(xs)
+    specific = specific_slide_meta(slug, pattern, problem, naive, solution, demo_src, run)
+    modern = solution[:1200] if any(k in solution for k in ("sealed", "record ", "Optional", "CompletableFuture", "virtual", "io.vavr", "dev.zazr")) else (
+        f"// Java 25 direction for {pattern}\n"
+        f"// Prefer records + sealed where they shrink the demo.\n"
+        f"// Problem under test: {problem}\n"
+    )
     meta = dict(
         title=title,
         subtitle=f"{pattern} · {problem[:60]} · Build with Waqar",
-        hook_bullets=bullets(
-            f"Problem: {problem}",
-            f"Pattern: {pattern} — earned from the pain, not trivia.",
-            "Runnable main on JDK 25 with captured stdout.",
-            "Naive → solution → failure paths → trade-offs.",
-        ),
-        problem_bullets=bullets(
-            problem,
-            "Naive design shows the cost clearly.",
-            "Pattern isolates the force behind a clean boundary.",
-            "Tests cover happy path and injected failures.",
-        ),
+        hook_bullets=specific["hook_bullets"],
+        problem_bullets=specific["problem_bullets"],
         diagram_edges=diagram_for(slug, problem),
         diagram_caption=f"{pattern}: {problem[:50]}",
         diagram_hl=[],
-        scenario_bullets=bullets(
-            f"Running example: {problem}",
-            "Same names in naive code, refactor, and Demo output.",
-            "No shared StreamForge framing unless it fits.",
-            "Product language first; pattern vocabulary second.",
-        ),
+        scenario_bullets=specific["scenario_bullets"],
         naive_code=naive[:2500],
-        pain_bullets=bullets(
-            "Call sites couple to the wrong shape or leak on partial failure.",
-            "Parameter drilling / duplicated envelopes / missing rollback.",
-            "Hard to unit-test without the real dependency.",
-            "New variants require shotgun edits.",
-        ),
+        pain_bullets=specific["pain_bullets"],
         refactor_stages=[
             dict(heading="Solution", code=solution[:2500]),
             dict(heading="Runnable main", code=demo_src[:2500]),
         ],
         run_output=run,
-        trace_bullets=bullets(
-            "Each stdout line maps to a stage above.",
-            "Re-run the main class locally on JDK 25.",
-            "Failure-path lines prove compensations / rejects / missing files.",
-            "Pause and predict the next line before revealing.",
-        ),
-        modern_code="// Java 25 / Zazr direction\n// records + sealed + switch\n// inject Env / collaborators at the edge\n// virtual threads for blocking fan-out",
-        tradeoff_bullets=bullets(
-            "Clarity vs ceremony — refuse five types for two lines.",
-            "Teaching demos omit production metrics/idempotency keys.",
-            "Prefer simpler language features when they erase the force.",
-            f"Know the twin pattern often confused with {pattern}.",
-        ),
-        related_bullets=bullets(
-            f"Contrast {pattern} with its neighbor pattern.",
-            "Name the roles from memory in sixty seconds.",
-            "Point to the season map for what comes next.",
-            "Link the GitHub episode folder in the description.",
-        ),
-        recap_bullets=bullets(
-            f"Problem → naive → {pattern} → Demo stdout.",
-            "Failure paths are part of the lesson.",
-            "Teach when NOT to use it.",
-            "Practice: break a test, fix it, re-run the main.",
-        ),
+        trace_bullets=specific["trace_bullets"],
+        modern_code=modern,
+        tradeoff_bullets=specific["tradeoff_bullets"],
+        related_bullets=specific["related_bullets"],
+        recap_bullets=specific["recap_bullets"],
     )
     return md, meta
 

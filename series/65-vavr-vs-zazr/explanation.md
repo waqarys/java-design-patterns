@@ -1,6 +1,6 @@
 # VAVR vs Zazr Deep Dive
 
-**Season:** 7 · Advanced FP · **Category:** Functional · **Level:** Advanced · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar
+**Season:** 7 · Advanced FP · **Category:** Functional · **Level:** Advanced · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar · **Target runtime:** ~10–12 min · **Channel:** Build with Waqar
 
 ## Problem
 **Same Option describe in both libraries**
@@ -57,18 +57,42 @@ or distributed details behind it.
 ```java
 package com.buildwithwaqar.patterns.functional.vavrcompare.problem;
 
-import java.util.*;
-import java.util.function.*;
+/**
+ * Side-by-side: same Option describe / map+flatMap program on real VAVR and real Zazr.
+ */
+public final class OptionCompare {
+    private OptionCompare() {}
 
-final class OptionCompare {
-  static String zazrDescribe(String raw){
-    var o = raw==null? Optional.<String>empty(): Optional.of(raw);
-    return o.map(s -> "zazr-some:"+s).orElse("zazr-none");
-  }
-  static String vavrStyleDescribe(String raw){
-    // educational stand-in without requiring VAVR API in problem package
-    return raw==null? "vavr-none": "vavr-some:"+raw;
-  }
+    public static String vavrDescribe(String raw) {
+        io.vavr.control.Option<String> o = raw == null
+                ? io.vavr.control.Option.none()
+                : io.vavr.control.Option.some(raw);
+        return o.map(s -> "vavr-some:" + s).getOrElse("vavr-none");
+    }
+
+    public static String zazrDescribe(String raw) {
+        dev.zazr.control.Option<String> o = raw == null
+                ? dev.zazr.control.Option.none()
+                : dev.zazr.control.Option.some(raw);
+        return o.map(s -> "zazr-some:" + s).getOrElse("zazr-none");
+    }
+
+    /** Trim → reject blank → lowercase — identical pipeline on both libraries. */
+    public static String vavrMapFlat(String raw) {
+        return io.vavr.control.Option.of(raw)
+                .flatMap(s -> s.isBlank() ? io.vavr.control.Option.none() : io.vavr.control.Option.some(s.trim()))
+                .map(String::toLowerCase)
+                .map(s -> "vavr-some:" + s)
+                .getOrElse("vavr-none");
+    }
+
+    public static String zazrMapFlat(String raw) {
+        return (raw == null ? dev.zazr.control.Option.<String>none() : dev.zazr.control.Option.some(raw))
+                .flatMap(s -> s.isBlank() ? dev.zazr.control.Option.none() : dev.zazr.control.Option.some(s.trim()))
+                .map(String::toLowerCase)
+                .map(s -> "zazr-some:" + s)
+                .getOrElse("zazr-none");
+    }
 }
 
 ```
@@ -76,17 +100,29 @@ final class OptionCompare {
 ### Stage 3 — Runnable main
 ```java
 package com.buildwithwaqar.patterns.functional.vavrcompare.problem;
-import java.util.*; import java.util.function.*;
+
+/** Problem: same Option describe — real io.vavr vs real dev.zazr. */
 public final class ProblemDemo {
-  public static void main(String[] args) {
-    System.out.println("=== VAVR vs Zazr: same Option describe ===");
-    System.out.println("--- naive ---"); System.out.println(NaiveOpt.describe(null));
-System.out.println("--- compare ---");
-System.out.println(OptionCompare.zazrDescribe("x"));
-System.out.println(OptionCompare.vavrStyleDescribe("x"));
-System.out.println(OptionCompare.zazrDescribe(null));
-System.out.println(OptionCompare.vavrStyleDescribe(null));
-  }
+    public static void main(String[] args) {
+        System.out.println("=== VAVR vs Zazr: real Option APIs ===");
+        System.out.println("--- naive null String ---");
+        System.out.println(NaiveOpt.describe(null));
+        System.out.println(NaiveOpt.describe("Hi"));
+
+        System.out.println("--- describe (some/none) ---");
+        System.out.println(OptionCompare.vavrDescribe("x"));
+        System.out.println(OptionCompare.zazrDescribe("x"));
+        System.out.println(OptionCompare.vavrDescribe(null));
+        System.out.println(OptionCompare.zazrDescribe(null));
+
+        System.out.println("--- map/flatMap pipeline ---");
+        System.out.println(OptionCompare.vavrMapFlat("  Hello "));
+        System.out.println(OptionCompare.zazrMapFlat("  Hello "));
+        System.out.println(OptionCompare.vavrMapFlat("   "));
+        System.out.println(OptionCompare.zazrMapFlat("   "));
+        System.out.println(OptionCompare.vavrMapFlat(null));
+        System.out.println(OptionCompare.zazrMapFlat(null));
+    }
 }
 
 ```
@@ -95,14 +131,22 @@ System.out.println(OptionCompare.vavrStyleDescribe(null));
 Narrate each line. Do not invent numbers on camera.
 
 ```text
-=== VAVR vs Zazr: same Option describe ===
---- naive ---
+=== VAVR vs Zazr: real Option APIs ===
+--- naive null String ---
 none
---- compare ---
-zazr-some:x
+some:Hi
+--- describe (some/none) ---
 vavr-some:x
+zazr-some:x
+vavr-none
+zazr-none
+--- map/flatMap pipeline ---
+vavr-some:hello
+zazr-some:hello
+vavr-none
 zazr-none
 vavr-none
+zazr-none
 ```
 
 Trace: match each printed line to a stage above. Fork the repo, set `JAVA_HOME` to JDK 25,

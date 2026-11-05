@@ -1,8 +1,16 @@
-=== VAVR vs Zazr: same Option describe ===
---- naive ---
+=== VAVR vs Zazr: real Option APIs ===
+--- naive null String ---
 none
---- compare ---
-zazr-some:x
+some:Hi
+--- describe (some/none) ---
 vavr-some:x
+zazr-some:x
+vavr-none
+zazr-none
+--- map/flatMap pipeline ---
+vavr-some:hello
+zazr-some:hello
+vavr-none
 zazr-none
 vavr-none
+zazr-none
