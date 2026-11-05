@@ -1,5 +1,4 @@
-=== Proxy walkthrough ===
-loadedBefore=false
-showing:/assets/thumb.png
+=== Proxy problem: lazy image load ===
+loadedBeforeScroll=false
+showing:/cdn/hero.png
 loadedAfter=true
-showing:/assets/thumb.png

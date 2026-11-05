@@ -1,4 +1,4 @@
-=== Bridge walkthrough ===
+=== Bridge problem: shape x renderer ===
+naive: VectorCircle, RasterCircle, VectorSquare, RasterSquare...
 vector:circle(3)
 raster:square(4)
-raster:circle(2)

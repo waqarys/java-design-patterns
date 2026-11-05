@@ -1,3 +1,2 @@
-=== Decorator walkthrough ===
-readBack=helloworld
-raw=plain
+=== Decorator problem: compress+encrypt store ===
+roundTrip=token=supersecret

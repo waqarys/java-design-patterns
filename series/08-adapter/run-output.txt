@@ -1,2 +1,7 @@
-=== Adapter walkthrough ===
-lastXml=<payload>{"ok":true,"ep":"adapter"}</payload>
+=== Adapter problem: legacy SOAP payment gateway ===
+--- naive (controller knows SOAP XML) ---
+OK:SOAP-alice-1998
+--- adapter (PaymentProcessor) ---
+OK:SOAP-alice-1998
+FAILED:<Fault>non-positive</Fault>
+PaymentResult[ok=false, transactionId=null, message=unsupported currency INR]

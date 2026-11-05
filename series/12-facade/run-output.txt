@@ -1,4 +1,3 @@
-=== Facade walkthrough ===
-OK:TRACK-sku-42
+=== Facade problem: one-call checkout ===
+OK:TRACK-sku-1
 REJECTED:inventory
-REJECTED:payment

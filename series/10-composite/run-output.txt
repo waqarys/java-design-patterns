@@ -1,3 +1,2 @@
-=== Composite walkthrough ===
-rootSize=1320
-rootName=root
+=== Composite problem: folder size ===
+totalBytes=800
