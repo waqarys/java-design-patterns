@@ -1,6 +1,4 @@
-=== Singleton walkthrough ===
-greeting=hello from staging
-sameEnum=true
-sameHolder=true
-hits=3
-fixedNow=2026-01-01T00:00:00Z
+=== Singleton problem: one metrics registry ===
+naiveA=2 naiveB=1 (split brain)
+singletonHits=3
+same=true

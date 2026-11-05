@@ -1,4 +1,3 @@
-=== Prototype walkthrough ===
-protoTitle=Weekly Sync sections=[Agenda, Notes]
-cloneTitle=Weekly Sync — Team A sections=[Agenda, Notes, Action Items]
-deck=Kickoff eu=Kickoff — EU sharedSlides=true
+=== Prototype problem: clone meeting template ===
+proto=Weekly Sync[Agenda, Notes]
+clone=Weekly Sync — Platform[Agenda, Notes, Action Items]

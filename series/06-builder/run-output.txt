@@ -1,6 +1,2 @@
-=== Builder walkthrough ===
-method=POST
-url=https://api.buildwithwaqar.dev/v1/videos
-auth=Bearer demo
-timeout=2500
-apiCall=GET body=hi t=100
+=== Builder problem: HTTP request with optionals ===
+method=POST auth=Bearer t timeout=3000
