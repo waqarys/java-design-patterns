@@ -1,2 +1,2 @@
-=== Virtual Threads walkthrough ===
-fanOut=50
+=== Virtual Threads problem: massive fan-out ===
+checks=200

@@ -1,12 +1,10 @@
-=== Producer-Consumer walkthrough ===
-take 1
-put 1
-put 2
-put 3
-take 2
-take 3
-put 4
-put 5
-take 4
-take 5
-sum=15
+=== Producer-Consumer problem: bounded frame queue ===
+encode 1
+encode 2
+encode 3
+upload 1
+upload 2
+upload 3
+encode 4
+upload 4
+checksum=10

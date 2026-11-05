@@ -1,2 +1,2 @@
-=== Thread Pool walkthrough ===
-completed=8
+=== Thread Pool problem: thumbnail jobs ===
+done=12

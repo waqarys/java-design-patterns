@@ -1,4 +1,2 @@
-=== Active Object walkthrough ===
-add2=2
-add3=5
-get=5
+=== Active Object problem: serialized ledger ===
+balance=7

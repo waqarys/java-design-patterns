@@ -1,4 +1,4 @@
-=== Read-Write Lock walkthrough ===
-manifest-v1
-manifest-v1
+=== Read-Write Lock problem: manifest cache ===
+manifest-v3
+manifest-v3
 loads=1

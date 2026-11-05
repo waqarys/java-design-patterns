@@ -1,3 +1,2 @@
-=== Future/Promise walkthrough ===
-async=42
-future=6
+=== Future/Promise problem: async thumbnail ===
+thumbBytes=256 url=https://cdn/x/256.jpg
