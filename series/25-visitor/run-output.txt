@@ -1,4 +1,3 @@
-=== Visitor walkthrough ===
-circleAreaPM=12.566370614359172
-circleAreaVisitor=12.566370614359172
-rectArea=12.0
+=== Visitor problem: shape areas ===
+pm=12.566370614359172
+visitor=12.566370614359172

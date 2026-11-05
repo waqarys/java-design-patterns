@@ -1,4 +1,3 @@
-=== Command walkthrough ===
-text=Build with Waqar
-afterUndo=Build with 
-afterSecondUndo=Build
+=== Command problem: undoable editor ===
+text=Hello Waqar
+undo=Hello

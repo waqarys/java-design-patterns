@@ -1,4 +1,3 @@
-=== Memento walkthrough ===
-now=Hello World!!!
-undo1=Hello World
-undo2=Hello
+=== Memento problem: editor checkpoints ===
+now=v1-v2
+restored=v1

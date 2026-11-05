@@ -1,4 +1,4 @@
-=== Chain walkthrough ===
-bill:42 -> billing-ok
-tech:wifi -> tech-ok
-hello -> general-ok
+=== Chain problem: support ticket routing ===
+bill:invoice->billing-ok
+tech:5xx->tech-ok
+hi->general-ok

@@ -1,6 +1,6 @@
-=== Iterator walkthrough ===
-next=worker-a
-next=worker-b
-next=worker-c
-next=worker-a
-next=worker-b
+=== Iterator problem: round-robin workers ===
+job0->w1
+job1->w2
+job2->w3
+job3->w1
+job4->w2

@@ -1,3 +1,2 @@
-=== Observer walkthrough ===
-audit=[audit:video.published, audit:video.transcoded]
-ui=[ui:video.published, ui:video.transcoded]
+=== Observer problem: event fan-out ===
+audit=[video.published]

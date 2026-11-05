@@ -1,5 +1,5 @@
-=== State walkthrough ===
-start=NEW
-afterPay=PAID
-afterShip=SHIPPED
-cancelOnShipped=IllegalStateException
+=== State problem: order lifecycle ===
+NEW
+paid=PAID
+shipped=SHIPPED
+illegalCancel=caught

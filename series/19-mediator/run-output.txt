@@ -1,5 +1,3 @@
-=== Mediator walkthrough ===
-bobInbox=[alice: stand-up in 5]
-caraInbox=[alice: stand-up in 5, bob: ack]
-aliceInbox=[bob: ack]
-log=[alice: stand-up in 5, bob: ack]
+=== Mediator problem: chat room ===
+bob=[alice: ship it]
+alice=[]

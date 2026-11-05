@@ -1,2 +1,2 @@
-=== Template Method walkthrough ===
+=== Template Method problem: CSV mining ===
 rows=2

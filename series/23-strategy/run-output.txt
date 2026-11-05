@@ -1,4 +1,3 @@
-=== Strategy walkthrough ===
-pct10=900
-flat200=800
-half=500
+=== Strategy problem: cart pricing ===
+10off=900
+flat=850
